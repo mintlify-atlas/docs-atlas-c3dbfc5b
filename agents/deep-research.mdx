@@ -1,0 +1,84 @@
+---
+title: "Deep Research Agent: Evidence-Based Web Research"
+sidebarTitle: "Deep Research"
+description: "The Deep Research agent conducts comprehensive web research with citations, balanced analysis, and access to Scholar search — driven by your SEARCH_API_KEY."
+---
+
+The Deep Research agent is OpenSwarm's dedicated researcher. It conducts multi-query, evidence-based research across the web and academic sources, structures findings into a consistent report format, and always backs claims with inline source citations. Every output distinguishes verified facts from speculation and presents conflicting sources side-by-side with a credibility assessment — so you get a research brief that can actually support decisions, not just a list of links.
+
+## What it does
+
+<CardGroup cols={2}>
+  <Card title="Multi-query web research" icon="globe">
+    Runs a minimum of 3–5 distinct search queries per request using `WebSearchTool`. Searches broad then narrows — official sources, regulatory filings, reputable news outlets, and industry reports take priority.
+  </Card>
+  <Card title="Scholar search" icon="graduation-cap">
+    Uses `ScholarSearch` to surface peer-reviewed papers, scientific studies, and scholarly citations. Called once per request to conserve API usage.
+  </Card>
+  <Card title="Inline citations" icon="link">
+    Every important claim includes a source link in `[Source: URL]` format. No unsourced assertions are presented as facts. Long URL dumps are never included in the final output.
+  </Card>
+  <Card title="Balanced analysis" icon="scale-balanced">
+    When sources conflict, the agent documents all perspectives, explains which appear most credible and why, and notes recency and source quality for each.
+  </Card>
+  <Card title="Structured report format" icon="file-lines">
+    Every research output follows a fixed six-section structure: Executive Summary → Key Findings → Evidence and Details → Options → Recommendation → Risks and Open Questions.
+  </Card>
+  <Card title="Actionable options" icon="list-check">
+    The agent always closes with 2–4 distinct paths forward, each with pros, cons, and prerequisites — and a clear recommendation with supporting rationale.
+  </Card>
+</CardGroup>
+
+## Required configuration
+
+Web search, Scholar search, and product search all require a `SEARCH_API_KEY` from [SearchAPI.io](https://www.searchapi.io).
+
+```bash
+# .env
+SEARCH_API_KEY=your_key_here
+```
+
+<Note>
+Get your `SEARCH_API_KEY` at [https://www.searchapi.io](https://www.searchapi.io). Without it the agent cannot browse the web or access Scholar search. The key enables `WebSearchTool`, `ScholarSearch`, and `ProductSearch`.
+</Note>
+
+## Output format
+
+Every research response follows this structure:
+
+```
+1. Executive Summary     — 5–10 actionable bullet points
+2. Key Findings          — grouped by theme with clear headings
+3. Evidence and Details  — inline citations, data, quotes, specific examples
+4. Options               — 2–4 paths forward, each with pros/cons/prerequisites
+5. Recommendation        — best option with 3–5 supporting reasons
+6. Risks and Open Questions — gaps, unknowns, follow-up research suggestions
+```
+
+## Example prompts
+
+```text
+Research my top 5 competitors in the project management SaaS space. Include pricing, positioning, and recent funding.
+```
+
+```text
+Find recent academic papers on large language model reasoning and summarize the key findings.
+```
+
+```text
+What are the current trends in house music production for 2025? Focus on hardware, DAWs, and distribution channels.
+```
+
+```text
+Give me a comprehensive analysis of the AI agent market landscape — key players, funding rounds, and open-source alternatives.
+```
+
+## Limitations
+
+<Warning>
+Web search, Scholar search, and product search all require a valid `SEARCH_API_KEY`. Without it the agent has no ability to browse the internet or access academic databases. It will clearly state this rather than fabricating results.
+</Warning>
+
+The agent will also explicitly state "Not found" or "Unable to verify" for any claim it cannot confirm after thorough searching — rather than speculating or filling gaps with hallucinated content. It lists exactly which searches were conducted and what information is missing.
+
+`ScholarSearch` is called at most **once per user request** to manage API costs. If your request requires extensive academic depth, consider breaking it into separate research tasks.

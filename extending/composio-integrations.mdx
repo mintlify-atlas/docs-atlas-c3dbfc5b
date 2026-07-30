@@ -1,0 +1,174 @@
+---
+title: "Connect 10,000+ Integrations with Composio"
+sidebarTitle: "Composio"
+description: "Composio gives OpenSwarm access to Gmail, Slack, GitHub, HubSpot, Google Calendar, Stripe, and 9,990+ more services — via a 4-step tool discovery sequence."
+---
+
+Composio is OpenSwarm's external integration layer. Without writing a single line of API client code, every agent in the swarm gains access to Gmail, Slack, Google Calendar, HubSpot, GitHub, Stripe, and thousands of other services. Composio handles OAuth authentication, token refresh, and API call execution — the agents discover and call tools through a structured four-step sequence defined in `shared_instructions.md`.
+
+## Setup
+
+Add your Composio credentials to `.env`:
+
+```bash
+# .env
+COMPOSIO_API_KEY=your_key_here
+COMPOSIO_USER_ID=your_user_id_here
+```
+
+Get both values at [https://composio.dev](https://composio.dev). The `COMPOSIO_API_KEY` authenticates the OpenSwarm backend to the Composio API. The `COMPOSIO_USER_ID` is the identifier that ties Composio to your account's connected apps — OAuth connections you set up in the Composio dashboard (authorizing Gmail, Slack, etc.) are stored against this user ID and retrieved automatically at runtime.
+
+## The tool discovery sequence
+
+Agents follow a four-step sequence whenever they need to use an external integration. This sequence is defined in `shared_instructions.md` Section 5 and applies to every agent in the swarm:
+
+<Steps>
+  <Step title="ManageConnections — check authentication">
+    Call `ManageConnections` first to verify that the required external service is connected and authenticated for the current user. If a connection is missing, Composio will initiate the OAuth flow. This prevents tool calls from failing mid-workflow due to auth errors.
+
+    ```python
+    # Check that Gmail is connected before attempting to send
+    ManageConnections(toolkits=["GMAIL"])
+    ```
+  </Step>
+
+  <Step title="SearchTools — discover candidate tools">
+    Call `SearchTools` with a natural-language description of the intent. Composio searches its tool registry and returns candidate tools with their schemas. Use this when you know *what* you want to accomplish but not the exact tool name.
+
+    ```python
+    SearchTools(
+        queries=[{"use_case": "send an email with an attachment"}],
+        session={"generate_id": True},
+    )
+    ```
+  </Step>
+
+  <Step title="FindTools with include_args=True — inspect parameters">
+    Once you have a candidate tool name, call `FindTools` with `include_args=True` to retrieve the exact parameter schema. Only set `include_args=True` at this stage — earlier in the workflow it wastes context tokens on schemas you may not use.
+
+    ```python
+    FindTools(
+        tool_names=["GMAIL_SEND_EMAIL"],
+        include_args=True,
+    )
+    ```
+  </Step>
+
+  <Step title="ExecuteTool — run the action">
+    Execute the tool with the validated argument structure. For simple single-tool tasks, `ExecuteTool` is the right choice. Use `return_fields` to extract only the fields you need from the response, keeping the context window lean.
+
+    ```python
+    ExecuteTool(
+        tool_name="GMAIL_SEND_EMAIL",
+        arguments={
+            "to": ["user@example.com"],
+            "subject": "Hello",
+            "body": "Hi from OpenSwarm",
+        },
+        return_fields=["successful", "message_id"],
+    )
+    ```
+  </Step>
+</Steps>
+
+## Programmatic tool calling
+
+For complex multi-step workflows — where you need to call multiple tools in sequence, transform data between steps, or build conditional logic — agents can use `IPythonInterpreter` with direct `composio` client calls. The `composio` client object and `user_id` are automatically injected at runtime; do not import them manually.
+
+```python
+# Fetch available Gmail tools
+tools = composio.tools.get(
+    user_id=user_id,
+    toolkits=["GMAIL"],
+    limit=5,
+)
+
+# Execute a tool call directly
+result = composio.tools.execute(
+    tool_name="GMAIL_SEND_EMAIL",
+    user_id=user_id,
+    arguments={
+        "to": ["user@example.com"],
+        "subject": "Hello",
+        "body": "Hi from agent",
+    },
+    dangerously_skip_version_check=True,
+)
+print(result)
+```
+
+Use programmatic calling only when `ExecuteTool` is not sufficient. For the majority of tasks — sending a message, creating a calendar event, submitting a ticket — the four-step sequence with `ExecuteTool` is cleaner and more token-efficient.
+
+## Supported toolkit families
+
+<CardGroup cols={2}>
+  <Card title="Email" icon="envelope">
+    **GMAIL**, **OUTLOOK**
+  </Card>
+  <Card title="Calendar & Scheduling" icon="calendar">
+    **GOOGLECALENDAR**, **OUTLOOK**, **CALENDLY**
+  </Card>
+  <Card title="Video & Meetings" icon="video">
+    **ZOOM**, **GOOGLEMEET**, **MICROSOFT_TEAMS**
+  </Card>
+  <Card title="Messaging" icon="message">
+    **SLACK**, **WHATSAPP**, **TELEGRAM**, **DISCORD**
+  </Card>
+  <Card title="Documents & Notes" icon="file-lines">
+    **GOOGLEDOCS**, **GOOGLESHEETS**, **NOTION**, **AIRTABLE**, **CODA**
+  </Card>
+  <Card title="Storage" icon="cloud">
+    **GOOGLEDRIVE**, **DROPBOX**
+  </Card>
+  <Card title="Project Management" icon="list-check">
+    **JIRA**, **ASANA**, **TRELLO**, **CLICKUP**, **MONDAY**, **BASECAMP**, **NOTION**
+  </Card>
+  <Card title="CRM & Sales" icon="chart-line">
+    **HUBSPOT**, **SALESFORCE**, **PIPEDRIVE**, **APOLLO**
+  </Card>
+  <Card title="Payments & Accounting" icon="credit-card">
+    **STRIPE**, **SQUARE**, **QUICKBOOKS**, **XERO**, **FRESHBOOKS**
+  </Card>
+  <Card title="Customer Support" icon="headset">
+    **ZENDESK**, **INTERCOM**, **FRESHDESK**
+  </Card>
+  <Card title="Marketing" icon="bullhorn">
+    **MAILCHIMP**, **SENDGRID**
+  </Card>
+  <Card title="Social Media" icon="share-nodes">
+    **LINKEDIN**, **TWITTER**, **INSTAGRAM**
+  </Card>
+  <Card title="E-commerce" icon="bag-shopping">
+    **SHOPIFY**
+  </Card>
+  <Card title="Signatures" icon="pen-nib">
+    **DOCUSIGN**
+  </Card>
+  <Card title="Design & Collaboration" icon="pen-ruler">
+    **FIGMA**, **CANVA**, **MIRO**
+  </Card>
+  <Card title="Development" icon="code">
+    **GITHUB**
+  </Card>
+  <Card title="Analytics" icon="chart-bar">
+    **AMPLITUDE**, **MIXPANEL**, **SEGMENT**
+  </Card>
+</CardGroup>
+
+## Best practices
+
+These guidelines come directly from `shared_instructions.md` Section 5.5 and apply to any agent using Composio:
+
+- **Save intermediate results to variables** — if a tool returns a list of records you'll reference later, store it rather than calling the tool again. Repeated API calls slow down the workflow and consume rate limit quota.
+
+- **Explore the returned data structure before extracting fields** — Composio responses vary by toolkit. Run a `FindTools` or an initial `ExecuteTool` call without `return_fields` first, inspect the shape of the response, then add `return_fields` to subsequent calls to extract only what you need.
+
+- **Format outputs for readability** — agents should return clean, human-readable summaries rather than raw JSON blobs. Include only the fields that are relevant to the current task; strip internal metadata the user doesn't need.
+
+- **Use `SearchTools` before `FindTools` when the exact tool name is unknown** — attempting `FindTools` with a guess at a tool name wastes a round-trip if the name is wrong. The search step is fast and returns exact names you can pass directly to `FindTools`.
+
+- **Prefer `ExecuteTool` over programmatic calling** — `ExecuteTool` handles auth context, error formatting, and field extraction automatically. Only drop down to `composio.tools.execute(...)` directly when you need conditional logic or data transformation between multiple tool calls.
+
+<Note>
+  Composio authentication is **per-user**. The `COMPOSIO_USER_ID` in your `.env` determines which OAuth connections are available. If you connect Gmail in the Composio dashboard under user ID `user_abc`, then set `COMPOSIO_USER_ID=user_abc` in `.env` — the agents will have access to that Gmail account. If you change the user ID, the previously authorized connections will not be available and `ManageConnections` will prompt for re-authentication.
+</Note>

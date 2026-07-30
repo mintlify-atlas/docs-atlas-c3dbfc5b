@@ -1,0 +1,122 @@
+---
+title: "OpenSwarm Agent Roster: 10 Specialists, One Team"
+sidebarTitle: "Overview"
+description: "Meet the 10 agents in OpenSwarm — from the Orchestrator that routes work to specialists for research, slides, docs, images, video, and music production."
+---
+
+OpenSwarm is built around a single organizing principle: one **Orchestrator** that routes every user request to the right specialist, and ten **specialist agents** that each own a narrow domain end-to-end. No agent is asked to do work outside its lane — the Orchestrator never executes tasks itself, and specialists hand off to each other when a request crosses domains. This clean separation means every task reaches the agent with the deepest relevant capability, and complex multi-part jobs can be parallelized automatically.
+
+## Agent roster
+
+| Agent | Role | Key capabilities |
+|---|---|---|
+| **Orchestrator** | Entry point and router | Parallel delegation via `SendMessage`; single-agent transfer via `Handoff`; never executes tasks |
+| **Virtual Assistant** | General-purpose admin | Email, calendar, Slack, file management, 10,000+ Composio integrations |
+| **Deep Research** | Evidence-based research | Multi-query web search, Scholar search, citations, balanced analysis |
+| **Data Analyst** | Analytics and visualization | IPython kernel, pandas/numpy/scipy/scikit-learn, charts, CSV/Excel |
+| **Slides Agent** | Presentation engineering | PowerPoint creation, editing, `.pptx` export |
+| **Docs Agent** | Document engineering | DOCX creation, PDF/Markdown/TXT conversion, version history |
+| **Image Agent** | Image specialist | AI image generation, editing, and composition |
+| **Video Agent** | Video specialist | AI video generation, editing, and assembly |
+| **Reference Finder** | House music tool | Captures live audio, analyzes sonic characteristics, returns closest Beatport/Traxsource chart matches |
+| **Ableton Dream Agent** | Music production AI | Nightly song sketch generation, Ableton Live Extension code, feedback loop |
+
+## Communication topology
+
+Every agent in OpenSwarm can transfer to every other agent directly. The wiring is defined in `swarm.py` using two communication patterns:
+
+- **`SendMessage` (parallel delegation)** — the Orchestrator fires off independent subtasks to multiple specialists simultaneously, then gathers all outputs and synthesizes a unified result. Example: research and data analysis running at the same time. `SendMessage` is never used for a single specialist — clarifying questions must be asked by the specialist after a `Handoff`.
+- **`Handoff` (full-context transfer)** — passes the entire conversation history to a single specialist. The specialist then iterates directly with the user without the Orchestrator in the loop. This is the default for any single-agent task.
+
+Specialists also carry a `transfer_to_<agent_name>` tool so they can redirect the user to the correct owner when an out-of-scope request arrives — without waiting for user confirmation.
+
+## Shared tools
+
+The following tools are available to all agents that need them:
+
+| Tool | What it does |
+|---|---|
+| `CopyFile` | Copies any file from one absolute path to another; creates destination directories automatically. Used to deliver generated outputs to a user-specified location. |
+| `ManageConnections` | Checks and manages Composio app connections (Gmail, Slack, Notion, etc.). Always run this first before accessing an external system. |
+| `SearchTools` | Discovers candidate Composio tools by use-case intent. Use after `ManageConnections` to find the right tool for a new workflow. |
+| `FindTools` | Looks up Composio tools by toolkit name or exact tool name and returns parameter schemas. Use with `include_args=True` immediately before executing. |
+| `ExecuteTool` | Executes a single Composio tool call and returns the result. Best for simple, one-shot actions that need no data transformation. |
+
+## How to reach each agent
+
+Users always enter the swarm through the **Orchestrator**. It interprets the request, picks the right specialist(s), and routes work automatically — either in parallel or via a direct handoff. You never need to address a specialist by name unless you want to start there directly.
+
+Specialists can be reached directly by name in the chat interface if you know which one you need. Each specialist will redirect you to another agent (without asking) if your request belongs elsewhere.
+
+<CardGroup cols={2}>
+  <Card
+    title="Orchestrator"
+    icon="sitemap"
+    href="/agents/orchestrator"
+  >
+    Routes every request to the right specialist via SendMessage or Handoff. The entry point for all user interactions.
+  </Card>
+  <Card
+    title="Virtual Assistant"
+    icon="envelope"
+    href="/agents/virtual-assistant"
+  >
+    Handles email, calendar, Slack, file management, and 10,000+ external integrations via Composio.
+  </Card>
+  <Card
+    title="Deep Research"
+    icon="magnifying-glass"
+    href="/agents/deep-research"
+  >
+    Conducts comprehensive web and Scholar research with inline citations and balanced analysis.
+  </Card>
+  <Card
+    title="Data Analyst"
+    icon="chart-bar"
+    href="/agents/data-analyst"
+  >
+    Analyzes structured data, builds charts, and runs statistical models in an isolated IPython kernel.
+  </Card>
+  <Card
+    title="Docs Agent"
+    icon="file-word"
+    href="/agents/docs-agent"
+  >
+    Creates and edits Word documents and PDFs from HTML or Markdown, with full version history.
+  </Card>
+  <Card
+    title="Slides Agent"
+    icon="presentation-screen"
+    href="#"
+  >
+    Engineers PowerPoint presentations from outlines or briefs and exports to `.pptx`.
+  </Card>
+  <Card
+    title="Image Agent"
+    icon="image"
+    href="#"
+  >
+    Generates, edits, and composes AI images from text prompts or reference uploads.
+  </Card>
+  <Card
+    title="Video Agent"
+    icon="video"
+    href="#"
+  >
+    Generates, edits, and assembles AI video from scripts, images, or existing footage.
+  </Card>
+  <Card
+    title="Reference Finder"
+    icon="music"
+    href="#"
+  >
+    Captures live audio, analyzes sonic characteristics, and returns the closest Beatport/Traxsource chart matches.
+  </Card>
+  <Card
+    title="Ableton Dream Agent"
+    icon="waveform"
+    href="#"
+  >
+    Generates nightly song sketch templates, writes Ableton Live Extension code, and manages the feedback loop.
+  </Card>
+</CardGroup>

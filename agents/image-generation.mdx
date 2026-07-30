@@ -1,0 +1,75 @@
+---
+title: "Image Generation Agent: AI Image Creation and Editing"
+sidebarTitle: "Image Generation"
+description: "Generate, edit, combine, and process images using Gemini 2.5 Flash Image, Gemini 3 Pro Image, and fal.ai — including background removal and multi-image composition."
+---
+
+The Image Generation Agent is a specialist for producing, editing, and compositing high-quality images. It selects the right model for each task based on quality requirements and available API keys, runs a mandatory QA pass after every generation, and performs one automatic correction before final delivery. All outputs are saved to `mnt/{product_name}/generated_images/` and the file path is always included in the response.
+
+## Tools
+
+<CardGroup cols={2}>
+  <Card title="GenerateImages" icon="wand-magic-sparkles">
+    Generates one or more images from a text prompt. Supports `gemini-2.5-flash-image`, `gemini-3-pro-image-preview`, and `gpt-image-1.5`. Up to 4 variants per call. Accepts a wide range of aspect ratios (1:1, 16:9, 9:16, 4:3, 3:4, and more). Saved to `mnt/{product_name}/generated_images/`.
+  </Card>
+  <Card title="EditImages" icon="pen-nib">
+    Edits an existing image based on a natural language instruction. Accepts a local path, URL, or previously generated image name as input. Supports the same three model options as `GenerateImages`, with up to 4 output variants. Ideal for targeted changes like style transfers, background swaps, or adding/removing elements.
+  </Card>
+  <Card title="CombineImages" icon="object-group">
+    Combines two or more images into a single composition following a text instruction. Use this whenever you need to place elements from one image into another — for example, applying a company logo onto a product photo. Requires at least two image references. Supports Gemini and OpenAI models.
+  </Card>
+  <Card title="RemoveBackground" icon="eraser">
+    Removes the background from an image using the Pixelcut model via fal.ai, producing a transparent PNG. Accepts a local path, URL, or generated image name as input. Requires `FAL_KEY`.
+  </Card>
+</CardGroup>
+
+## Supported providers
+
+The agent supports three model families. Each tool validates that the requested model is available given your configured API keys, and will report a clear error if a required key is missing.
+
+<Tabs>
+  <Tab title="Gemini (Google)">
+    **Requires `GOOGLE_API_KEY`**
+
+    Two Gemini image models are available:
+
+    - **`gemini-2.5-flash-image`** — default for most tasks. Fastest high-quality option, well-suited for iterative workflows and rapid variants.
+    - **`gemini-3-pro-image-preview`** — precision-first. Use this for text-heavy images, complex product compositions, high-fidelity brand assets, or any prompt with many competing constraints.
+
+    Gemini models support the full aspect ratio set: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`.
+  </Tab>
+  <Tab title="OpenAI">
+    **Requires `OPENAI_API_KEY`**
+
+    - **`gpt-image-1.5`** — use when OpenAI is explicitly requested or when comparing outputs across model families. Supported aspect ratios: `1:1`, `2:3`, `3:2` only.
+
+    Note: `gpt-image-1.5` is not supported through the Codex/browser API — a direct OpenAI API key is required.
+  </Tab>
+  <Tab title="fal.ai">
+    **Requires `FAL_KEY`**
+
+    - **Pixelcut background removal** — used by the `RemoveBackground` tool via the `pixelcut/background-removal` endpoint. Outputs a transparent RGBA PNG.
+  </Tab>
+</Tabs>
+
+## Model selection logic
+
+The agent follows these guidelines when choosing a model:
+
+1. **Default**: `gemini-2.5-flash-image` for most generation and editing tasks
+2. **Upgrade to `gemini-3-pro-image-preview`** for: text-heavy images, complex compositions, brand assets, precise editing, large prompts with many style directives
+3. **Use `gpt-image-1.5`** only when OpenAI is explicitly requested or for multi-model comparison
+4. If a requested model is unavailable, the agent switches to a compatible one and explains why
+
+## Example prompts
+
+- "Generate a hero image for my startup's landing page"
+- "Remove the background from this product photo"
+- "Combine these 3 images into a grid composition"
+- "Create two variants: one with Gemini Flash and one with the Pro model"
+- "Edit this photo to use a dark, cinematic style"
+- "Generate a clean product shot on a marble surface with soft studio lighting"
+
+<Note>
+  Both `GOOGLE_API_KEY` and `FAL_KEY` are optional but unlock different capabilities. `GOOGLE_API_KEY` enables `GenerateImages`, `EditImages`, and `CombineImages` with Gemini models. `FAL_KEY` is required exclusively for `RemoveBackground`. If you only set one key, those specific tools that require the missing key will return an informative error while the others continue to work.
+</Note>

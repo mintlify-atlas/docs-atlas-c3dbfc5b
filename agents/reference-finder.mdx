@@ -1,0 +1,118 @@
+---
+title: "Reference Finder: Match Your Mix to Chart Tracks"
+sidebarTitle: "Reference Finder"
+description: "Capture live audio, extract sonic features, and find the closest-matching recent Beatport and Traxsource chart tracks for mixing and mastering reference."
+---
+
+The Reference Finder is a specialist agent for house music producers who need high-quality, current reference tracks to compare against their work-in-progress during mixing and mastering. It captures audio directly from your system — a DAW output, a loopback device, or any input — extracts a multi-dimensional sonic fingerprint, and returns a ranked list of the closest-matching recent chart tracks from Beatport and Traxsource, complete with a spectrum overlay showing exactly where your track sits relative to each reference.
+
+## How it works
+
+<Steps>
+  <Step title="List audio devices">
+    `ListAudioDevices` queries all available system input devices using `sounddevice`. Each device is listed with its index, name, host API, channel count, and sample rate. Loopback and virtual devices (BlackHole, Soundflower, VB-Audio Cable, etc.) are automatically flagged — these are the devices you want for capturing DAW output.
+  </Step>
+  <Step title="Capture audio">
+    `CaptureAudio` records 30–60 seconds of audio from your chosen device index. The recording is collapsed to mono and saved as a WAV file at the device's native sample rate. Choose a section of your track that is representative of the full mix — drops, not breakdowns.
+  </Step>
+  <Step title="Extract features">
+    `ExtractFeatures` analyzes the captured WAV file and builds a weighted, L2-normalized feature vector. The vector encodes four dimensions:
+    - **Low-end profile** — sub-bass energy ratio, bass balance
+    - **Tonal balance** — LUFS integrated loudness, spectral centroid
+    - **Dynamics** — dynamic range, compression character
+    - **Timbre** — MFCC coefficients capturing the overall tonal texture
+
+    The tool also returns a full frequency spectrum (frequencies + power in dB) for visualization.
+  </Step>
+  <Step title="Search references">
+    `SearchReferences` queries the local ChromaDB vector database using cosine similarity against your feature vector. Returns the top 10 (configurable up to 50) closest-matching tracks with similarity scores and per-dimension breakdowns. You can filter by genre slug (e.g. `tech-house`) to narrow results.
+  </Step>
+  <Step title="Format results">
+    `FormatResults` generates a spectrum overlay PNG comparing your track's frequency profile against the top 3 references. The chart uses a logarithmic frequency axis (20 Hz – 20 kHz) with Savitzky–Golay smoothing applied to all curves, and is styled for dark-mode display. Returns the image as a base64-encoded PNG.
+  </Step>
+</Steps>
+
+## Building the reference database
+
+Before running a reference search for the first time, you need to populate the local database. The `BuildDatabase` tool scrapes chart tracks from Beatport and Traxsource, downloads 30–90 second preview clips for each, extracts audio features, and indexes them in a persistent ChromaDB vector store at `~/.housemusic_refs/chromadb/`.
+
+```bash
+# First-run: scrapes all default genres from both platforms (~30–60 minutes)
+Build the reference database from recent Beatport and Traxsource charts
+
+# Refresh specific genres
+Build the reference database, sources: beatport, genres: tech-house,deep-house
+
+# Force re-index of already-indexed tracks
+Build the reference database with refresh enabled
+```
+
+The tool supports:
+- **Sources**: `beatport`, `traxsource` (comma-separated)
+- **Genres**: `house`, `deep-house`, `tech-house`, `funky-minimal` (comma-separated)
+- **Max tracks per genre**: 10–200 (default 100)
+- **Refresh mode**: re-scrapes and upserts even if already indexed
+
+Beatport tracks are scraped from the embedded `__NEXT_DATA__` JSON in the page. Traxsource uses server-rendered HTML parsing with BeautifulSoup. Both use a Playwright browser context (browser TLS + headers) to reliably pass CDN bot protection when downloading preview audio.
+
+## Output format
+
+Every reference search returns results in a consistent structure:
+
+**Summary line**
+> "Found 847 tracks in database, best match is Larry Heard – Can You Feel It (Original Mix) at 91%"
+
+**Top 10 reference list**
+
+| # | Match | Artist – Title | Label | BPM | Key | Chart | Buy |
+|---|-------|---------------|-------|-----|-----|-------|-----|
+| 1 | 91% | Artist – Track Title | Label Name | 123 | C Minor | Beatport Deep House #3 | link |
+
+Each result includes:
+- Rank and overall similarity percentage
+- Artist, title, label
+- BPM and key
+- Chart source (Beatport or Traxsource) and chart position
+- Buy link (direct track page)
+- Similarity breakdown: **Low-end** / **Tonal** / **Energy** / **Vibe** component scores
+
+**Spectrum overlay image**
+
+A frequency response chart (20 Hz – 20 kHz, log scale) showing your track in cyan against the top 3 references in red, orange, and green.
+
+**Actionable notes**
+
+The agent interprets the similarity breakdown and adds producer-focused notes, for example:
+- "Your track sits darker than most references — try boosting 2–4 kHz for more presence"
+- "Your sub-bass is louder than all references — check mono compatibility below 80 Hz"
+- "Energy match is strong but tonal balance is 15% off — likely a high-shelf difference"
+
+## Genre focus
+
+The Reference Finder specializes in these subgenres across Beatport and Traxsource:
+
+<CardGroup cols={2}>
+  <Card title="Beatport" icon="music">
+    - House (main floor)
+    - Deep House
+    - Tech House
+  </Card>
+  <Card title="Traxsource" icon="record-vinyl">
+    - House (soulful)
+    - Deep House
+    - Tech House
+    - Funky / Minimal
+  </Card>
+</CardGroup>
+
+## Example prompts
+
+- "Find reference tracks that match what I'm playing right now"
+- "Build the reference database from recent Beatport and Traxsource charts"
+- "Analyze this mix and find similar recent deep house chart-toppers"
+- "Show me what's charting in tech house that sounds like this"
+- "Find references, filter to deep-house only"
+
+<Warning>
+  The reference database is for **personal production use only**. The `BuildDatabase` tool downloads 30–90 second audio previews — the same clips available on the public chart pages — purely for sonic analysis and local indexing. No full copyrighted tracks are fetched, stored, or distributed. Do not use this tool to build a distribution library.
+</Warning>

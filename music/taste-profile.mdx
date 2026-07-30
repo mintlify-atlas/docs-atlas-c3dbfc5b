@@ -1,0 +1,160 @@
+---
+title: "Musical Taste Profile: Teaching OpenSwarm Your Sound"
+sidebarTitle: "Taste Profile"
+description: "The taste profile is the authoritative source for musical identity in OpenSwarm — covering genre, BPM window, label tiers, essential cuts, and production DNA that all music agents use."
+---
+
+Every music-related decision in OpenSwarm traces back to a single file: `knowledge/music_context.md`. This is the authoritative taste profile — a living document that defines genre identity, BPM window, label pedigree, essential reference cuts, sonic palette, and production DNA. It's not a configuration file in the traditional sense. It's a musical identity document that every agent reads before any creative or curatorial task. The Music Curation engine reads it to score discovery candidates. The Ableton Dream Agent reads it before generating a nightly sketch. The Reference Finder reads it to suggest tracks. When you change this file, the change propagates everywhere simultaneously.
+
+## Genre identity
+
+Unkle Funk's sound is rooted in the original Chicago and Detroit house traditions — not as nostalgia, but as a living lineage to push forward.
+
+<CardGroup cols={2}>
+  <Card title="Deep House" icon="house">
+    The original meaning: warm, chord-heavy, spiritual, Larry Heard territory. Not the watered-down "deep" label slapped on anything with a pad. Breathing chords, sub bass that moves air, Rhodes and Wurlitzer.
+  </Card>
+  <Card title="Soulful House" icon="heart">
+    Vocals that feel lived-in, gospel undertones, Kerri Chandler / Dennis Ferrer / Masters At Work lineage. Not pop-soul-house. The vocal supports the groove — it doesn't lead it.
+  </Card>
+  <Card title="Classic Chicago House" icon="music">
+    Trax Records, Jackmaster, Ron Hardy, Ron Trent era. Raw drum machines, 303 basslines, spiritual grit. The chord structure of Mr. Fingers' "Can You Feel It" — the entire deep house emotional vocabulary in one riff.
+  </Card>
+  <Card title="Detroit Deep Soul" icon="star">
+    Moodymann, Theo Parrish — jazz-influenced, unpolished by design, emotionally complex. Lo-fi texture as artistic statement. Soul without apology.
+  </Card>
+</CardGroup>
+
+### BPM and feel
+
+| Parameter | Value |
+|---|---|
+| **BPM window** | ~118–128 |
+| **Sweet spot** | 120–123 (123 is dead center, data-confirmed) |
+| **Key preference** | Minor keys — C Minor, A Minor, D Minor |
+| **Groove** | Swung, not quantized-rigid. Human. Breathing room between notes. |
+| **Arrangement** | Long intros, patient builds, no rush to the drop. Tracks that reward DJs who know how to mix. |
+
+### Anti-patterns
+
+These are disqualifying in any curatorial or creative context:
+
+- EDM aesthetics, side-chain pumping as a featured effect, festival builds and drops
+- Vocal chops as the melodic hook
+- Anything polished, radio-safe, or commercial
+- Big room, future house, industrial tech house noise
+- Arpeggiators running obvious major-key patterns
+- Mid-range-heavy mixdowns — this music lives in the lows
+
+## Essential cuts (taste anchors)
+
+These eight tracks define the emotional and sonic vocabulary of the profile. Each entry documents the specific element that makes it matter — not just the reference.
+
+<CardGroup cols={2}>
+  <Card title="Can You Feel It — Mr. Fingers" icon="record-vinyl">
+    **Trax Records, 1986 — Classic Chicago**
+
+    The chord structure — minor suspended chords ascending. The entire deep house emotional vocabulary in one riff.
+  </Card>
+  <Card title="Mystery of Love — Larry Heard" icon="record-vinyl">
+    **Alleviated Records, 1985 — Deep Blueprint**
+
+    The restraint. Bass and chords only. Everything else is implication.
+  </Card>
+  <Card title="Your Love — Frankie Knuckles" icon="record-vinyl">
+    **Trax Records, 1987 — Chicago Classic**
+
+    The vocal sample placement, the shuffle, the way the track breathes around the groove.
+  </Card>
+  <Card title="Altered States — Ron Trent" icon="record-vinyl">
+    **Prescription Records, 1992 — Deep Hypnotic**
+
+    The hypnotic loop architecture. Nothing changes but everything evolves.
+  </Card>
+  <Card title="Brighter Days — Cajmere feat. Dajae" icon="record-vinyl">
+    **Cajual Records, 1992 — Chicago House**
+
+    Chicago grit meeting gospel uplift. The tension between raw production and hopeful vocal.
+  </Card>
+  <Card title="Bar A Thym — Kerri Chandler" icon="record-vinyl">
+    **Kaoz Theory, 2001 — Deep House**
+
+    The bass. Deep, warm, rubbery — it physically moves the floor.
+  </Card>
+  <Card title="Dem Young Sconies — Moodymann" icon="record-vinyl">
+    **Mahogani Music, 2007 — Detroit Deep**
+
+    Deliberately imperfect. The lo-fi texture is the statement. Soul without apology.
+  </Card>
+  <Card title="Hey Hey — Dennis Ferrer" icon="record-vinyl">
+    **Objektivity, 2009 — Soulful House**
+
+    Perfect balance of soulful and functional. The vocal supports the groove, not leads it.
+  </Card>
+</CardGroup>
+
+## Dream labels (taste data)
+
+These are the three labels whose full catalogs constitute a pure taste signal — anything released on them starts with full credibility:
+
+- **Soulsupplement Records** — home of Unkle Funk's own track "1998" (123 BPM, C Minor, 2016)
+- **Wulfpack** — home of "La Honda Dreams" with Anaiek
+- **DOIN' WORK Records** — home of "Groove Italio" and "Experimental"
+
+The broader label trust hierarchy is maintained in `knowledge/music_context.md` and mirrored in `music_curation/profile.yaml`. Full catalog trust extends to Trax Records, Prescription, Mahogani Music, Kaoz Theory, Defected (pre-2015 deep catalog), BBE, Nervous Records, Strictly Rhythm, and Cajual. Red-flag labels (Ultra Records, Ministry of Sound compilations, anything labeled EDM or big room) are treated as noise.
+
+## Measured taste fingerprint
+
+Beyond the qualitative taste profile, the Dream Agent's instructions embed a data-proven fingerprint derived from analysis of 139 confirmed favorites compared against 655 reference-label tracks. These findings sharpen what the subjective preferences actually mean in measurable terms:
+
+<CardGroup cols={2}>
+  <Card title="Rejects the loudness war" icon="volume-slash">
+    His favorites are the most dynamic, least-compressed tracks in the dataset (MFCC-1 of −156 vs commercial average of −46). His ear values headroom and dynamic range. In production terms: loose humanization, wide velocity variation, never flat-line dynamics.
+  </Card>
+  <Card title="123 BPM is dead center" icon="metronome">
+    Confirmed by corrected analysis — not an approximation. The viable range is 122–124; wandering outside that needs a reason. 120 feels slow and heavy; 126 starts to lean toward New York house energy.
+  </Card>
+  <Card title="Warm but clear" icon="sun">
+    Spectral centroid sits around ~3050 Hz. Avoid harsh or piercing highs; avoid muddy lows. The target is warm, present, and clean — the kind of clarity you get from analog saturation rather than digital sheen.
+  </Card>
+  <Card title="Harmony always" icon="chord">
+    Chroma value of ~0.55 — harmony is consistent and present. Never ship a bare drum-tool sketch or a track without chords. The soul of this music lives in the chord voicings — minor 7ths, minor 9ths, suspended 4ths.
+  </Card>
+</CardGroup>
+
+## Artist network (trust signals)
+
+Beyond the foundational and catalog-trust tiers, the Tier 3 artist network represents collaborators, peers, and trusted circle members whose releases carry a strong personal signal:
+
+| Artist | Context |
+|---|---|
+| **Anaiek** | Co-wrote "La Honda Dreams" on Wulfpack |
+| **Disco Aliens collective** | Trusted peer group |
+| **Tyrohn Brooks (Obitykenobi)** | Trusted network |
+| **Chris Mindel** | Trusted network |
+| **DJ PLEXXX** | Trusted network |
+
+These artists are seeded into `music_curation/profile.yaml` with positive scores and are given elevated weight during candidate ranking.
+
+## Updating the taste profile
+
+`knowledge/music_context.md` is the file to edit. It is structured in sections with clear headings — the AI Primer block at the top gives agents a fast orientation, while the full sections (genre identity, sonic palette, production DNA, essential cuts, anti-patterns) give depth for production-level decisions.
+
+```bash
+# Open the taste profile for editing
+open knowledge/music_context.md
+
+# After editing, verify the curation scorer picks it up on next run
+python3 music_curation/discovery.py --source labels --days 7
+```
+
+The file includes an evolution protocol: update it after any session where something clicked or something missed badly. Tag entries with `[TASTE]`, `[PRODUCTION]`, or `[EXTENSIONS]` for the consolidation script to pick up. Key update triggers:
+
+- New essential cuts identified (add with the specific *why* element)
+- Ableton preferences sharpen through production sessions
+- A production session reveals something new about the aesthetic
+- An AI output lands perfectly — document what worked
+
+<Tip>
+  The taste profile is consumed simultaneously by the Ableton Dream Agent (before every nightly sketch), the Reference Finder (when suggesting tracks for harmonic mixing), and the Music Curation engine (as the baseline for all scoring). A single edit to `knowledge/music_context.md` propagates to all three without any additional steps.
+</Tip>

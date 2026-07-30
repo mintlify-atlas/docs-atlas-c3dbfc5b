@@ -1,0 +1,81 @@
+---
+title: "OpenSwarm: Multi-Agent AI Team for Developers"
+sidebarTitle: "Introduction"
+description: "OpenSwarm gives you 10 specialized AI agents that collaborate from your terminal — from research and slides to music production, all from a single prompt."
+---
+
+OpenSwarm is a fully open-source, terminal-first multi-agent AI system built on [Agency Swarm](https://github.com/VRSEN/agency-swarm) — the framework powering real AI agencies. Instead of a single model trying to do everything poorly, OpenSwarm gives you **10 specialized agents** coordinated by a central orchestrator: Virtual Assistant, Deep Research, Data Analyst, Slides Agent, Docs Agent, Image Generation, Video Generation, Reference Finder, and Ableton Dream Agent. Send one prompt from your terminal and watch the team produce complete, polished deliverables — slide decks, research reports, data visualizations, documents, images, videos, and even Ableton Live sketches. OpenSwarm supports OpenAI, Anthropic, and Google Gemini as AI providers, and connects to 10,000+ external services via Composio.
+
+<Note>
+  OpenSwarm is built on [Agency Swarm](https://github.com/VRSEN/agency-swarm), the open-source framework for building production-grade multi-agent systems. All agents, communication flows, and tool definitions follow Agency Swarm conventions and are fully customizable.
+</Note>
+
+## How it works
+
+OpenSwarm uses an **orchestrator-specialist model**. Every user request flows through the Orchestrator first — it never answers questions or executes tasks directly. Instead, it analyzes your prompt and routes work to the right specialist(s) using two communication primitives:
+
+- **`SendMessage`** — dispatches a task to one or more specialists in parallel. The orchestrator waits for all responses before synthesizing a final reply. Used when a request spans multiple domains (e.g., research + slides + a cover image).
+- **`Handoff`** — transfers control to a single specialist for focused, sequential work. Any agent can hand off to any other agent, enabling multi-step workflows that chain specialists together automatically.
+
+The orchestrator is defined in `swarm.py` with `SendMessage` flows from the orchestrator to every specialist, and bidirectional `Handoff` flows between all agents. This topology means your prompt can trigger a cascade of coordinated specialist work — no manual routing required.
+
+## Agent roster
+
+<CardGroup cols={2}>
+  <Card title="Orchestrator" icon="sitemap" href="/agents/orchestrator">
+    Routes every user request to the right specialist(s). Never answers directly — pure coordination via SendMessage and Handoff.
+  </Card>
+  <Card title="Virtual Assistant" icon="calendar-check" href="/agents/virtual-assistant">
+    Handles everyday tasks: writing, scheduling, messaging, and task management. Gains 10,000+ external integrations via Composio (Gmail, Slack, GitHub, HubSpot, and more).
+  </Card>
+  <Card title="Deep Research" icon="magnifying-glass" href="/agents/deep-research">
+    Conducts comprehensive, evidence-based web research with citations, Scholar search, and balanced analysis.
+  </Card>
+  <Card title="Data Analyst" icon="chart-bar" href="/agents/data-analyst">
+    Analyses structured data, builds charts, and runs statistical models — all inside an isolated IPython kernel with pandas, NumPy, SciPy, and Plotly.
+  </Card>
+  <Card title="Slides Agent" icon="presentation-screen" href="/agents/slides-agent">
+    Generates complete, visually polished HTML slide decks and exports them to PPTX. Uses stock photo search via Pexels, Pixabay, and Unsplash.
+  </Card>
+  <Card title="Docs Agent" icon="file-lines" href="/agents/docs-agent">
+    Creates formatted Word documents and PDFs from outlines or raw content. Supports DOCX, PDF, Markdown, and TXT output.
+  </Card>
+  <Card title="Image Generation" icon="image" href="/agents/image-generation">
+    Generates and edits images using Gemini 2.5 Flash Image, Gemini 3 Pro Image, and fal.ai — including background removal and composition.
+  </Card>
+  <Card title="Video Generation" icon="video" href="/agents/video-generation">
+    Produces videos via Sora (OpenAI), Veo (Google), and Seedance 1.5 Pro (fal.ai). Also edits and combines existing clips.
+  </Card>
+  <Card title="Reference Finder" icon="music" href="/agents/reference-finder">
+    Audio analysis and reference track discovery using vector search (ChromaDB), sounddevice, and loudness normalization.
+  </Card>
+  <Card title="Ableton Dream Agent" icon="waveform-lines" href="/agents/ableton-dream">
+    Nightly song sketch generation, Ableton Live Extension code, and feedback loop tailored for house music production.
+  </Card>
+</CardGroup>
+
+## Real examples
+
+Paste any of these directly into your terminal after running `openswarm`:
+
+- **"Create a complete investor pitch for OpenSwarm"** → Full deck + executive summary + market research
+- **"Research my top 5 competitors and write 3 SEO-optimized blog posts"** → Competitive analysis + keyword research + publish-ready content
+- **"Analyze this data and create a quarterly report with charts"** → Data insights + visualizations + formatted document
+- **"Generate a product launch video with animations"** → Professional video with graphics and transitions
+- **"Build me a marketing campaign for Q2"** → Strategy doc + creative assets + implementation timeline
+
+Each prompt kicks off the Orchestrator, which breaks the work into parallel tracks and hands them off to the relevant specialists simultaneously. The results are assembled into a single cohesive output.
+
+## Multi-provider support
+
+OpenSwarm supports three AI providers out of the box. Set the `DEFAULT_MODEL` environment variable to switch between them — all agents read it at startup via `config.py`.
+
+| Provider | Default model | Routing |
+|---|---|---|
+| **OpenAI** | `gpt-5.2` | Native (no slash in model ID) |
+| **Anthropic** | `litellm/claude-sonnet-4-6` | Routed through LiteLLM |
+| **Google Gemini** | `litellm/gemini/gemini-3-flash` | Routed through LiteLLM |
+
+Any model string containing a `/` is automatically routed through LiteLLM via `agency_swarm.LitellmModel`. OpenAI model IDs contain no slash and pass through unchanged. The setup wizard sets `DEFAULT_MODEL` for you when you run `openswarm` for the first time.
+
+Image and video generation agents use provider-specific models regardless of `DEFAULT_MODEL` — Gemini image models require `GOOGLE_API_KEY`, Sora requires `OPENAI_API_KEY`, and Seedance requires `FAL_KEY`.

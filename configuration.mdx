@@ -1,0 +1,193 @@
+---
+title: "Configure API Keys and Providers for OpenSwarm"
+sidebarTitle: "Configuration"
+description: "Set up your AI provider key, choose a model, and enable optional integrations like Composio, web search, image generation, and video in OpenSwarm's .env file."
+---
+
+All OpenSwarm configuration lives in a single `.env` file at the root of the project. To get started, copy the template and fill in your keys:
+
+```bash
+cp .env.example .env
+```
+
+The interactive setup wizard — launched by running `openswarm` (npm) or `python onboard.py` (local) — writes this file for you automatically. You can also edit it by hand at any time. Every key is optional except for one: you must supply an API key for at least one AI provider.
+
+<Warning>
+  Never commit your `.env` file to version control. It contains secret API keys. The `.gitignore` in the OpenSwarm repo already excludes it, but double-check before pushing any fork or custom swarm.
+</Warning>
+
+## AI provider (required — choose one)
+
+OpenSwarm requires exactly one AI provider key to function. Choose the provider that best fits your use case and add the corresponding key to `.env`.
+
+| Variable | Provider | Default model | Get your key |
+|---|---|---|---|
+| `OPENAI_API_KEY` | OpenAI | `gpt-5.2` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| `ANTHROPIC_API_KEY` | Anthropic | `litellm/claude-sonnet-4-6` | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
+| `GOOGLE_API_KEY` | Google Gemini | `litellm/gemini/gemini-3-flash` | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) |
+
+Set the key for your chosen provider and leave the others blank. The setup wizard sets `DEFAULT_MODEL` automatically to match the provider you select.
+
+## Model selection
+
+The `DEFAULT_MODEL` environment variable controls which model all agents use. It is set automatically by the setup wizard, but you can override it manually at any time.
+
+```bash
+# OpenAI — model IDs contain no slash, passed directly to the API
+DEFAULT_MODEL=gpt-5.2
+
+# Anthropic — slash-prefixed strings are routed through LiteLLM automatically
+DEFAULT_MODEL=litellm/claude-sonnet-4-6
+
+# Google Gemini — also routed through LiteLLM
+DEFAULT_MODEL=litellm/gemini/gemini-3-flash
+```
+
+**How routing works:** `config.py` reads `DEFAULT_MODEL` at startup. If the value contains a `/`, it is treated as a LiteLLM model string and wrapped in `agency_swarm.LitellmModel`. OpenAI model IDs (e.g. `gpt-5.2`, `o3`) contain no slash and are passed to the OpenAI API directly. This means you can use any LiteLLM-supported model by prefixing it with `litellm/` — no other code changes required.
+
+<Tip>
+  Run `openswarm` (or `python onboard.py`) again at any time to update your provider key, switch to a different model, or enable new add-ons through the interactive wizard. It detects existing values and only prompts for what needs to change.
+</Tip>
+
+## Optional integrations
+
+<AccordionGroup>
+  <Accordion title="Composio — 10,000+ external integrations">
+    Composio extends the Virtual Assistant with access to over 10,000 external services including Gmail, Slack, GitHub, HubSpot, Google Calendar, Notion, Stripe, and more.
+
+    ```bash
+    COMPOSIO_API_KEY=your_composio_api_key
+    COMPOSIO_USER_ID=your_composio_user_id
+    ```
+
+    Both values are required. The user ID scopes which connected accounts the agent can access. Get your credentials at [composio.dev](https://composio.dev).
+
+    Without these keys, the Virtual Assistant operates without external integrations but still handles writing, planning, and local tasks.
+  </Accordion>
+
+  <Accordion title="Web Search — SearchAPI">
+    The `SEARCH_API_KEY` enables web search, Google Scholar search, and product search across all agents — primarily used by the Deep Research agent.
+
+    ```bash
+    SEARCH_API_KEY=your_searchapi_key
+    ```
+
+    Get your key at [searchapi.io](https://www.searchapi.io). Without this key, the Deep Research agent cannot perform live web queries and will work from its training data only.
+  </Accordion>
+
+  <Accordion title="Google AI / Gemini — image generation and Veo video">
+    The `GOOGLE_API_KEY` enables Gemini-powered image generation and editing (Gemini 2.5 Flash Image, Gemini 3 Pro Image) across the Image Generation agent, Slides Agent, and Video Generation agent. It also unlocks Veo video generation in the Video Generation agent.
+
+    ```bash
+    GOOGLE_API_KEY=your_google_ai_api_key
+    ```
+
+    Get your key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
+
+    If you chose Google Gemini as your primary AI provider, this key is already set and also covers model inference — no separate key is needed.
+  </Accordion>
+
+  <Accordion title="fal.ai — Seedance video, editing, and background removal">
+    The `FAL_KEY` enables Seedance 1.5 Pro video generation, video editing and clip combination, and background removal in the Image Generation agent.
+
+    ```bash
+    FAL_KEY=your_fal_api_key
+    ```
+
+    Get your key at [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys). Without this key, the Video Generation agent falls back to Sora (OpenAI) or Veo (Google) if those provider keys are available, and background removal in the Image agent is unavailable.
+  </Accordion>
+
+  <Accordion title="Stock photos — Pexels, Pixabay, Unsplash">
+    These keys enable the Slides Agent's image search tool, which pulls high-quality stock photos into generated slide decks automatically.
+
+    ```bash
+    PEXELS_API_KEY=your_pexels_api_key
+    PIXABAY_API_KEY=your_pixabay_api_key
+    UNSPLASH_ACCESS_KEY=your_unsplash_access_key
+    ```
+
+    All three are optional and independent — the agent uses whichever keys are present. Get your keys at:
+    - Pexels: [pexels.com/api](https://www.pexels.com/api)
+    - Pixabay: [pixabay.com/api/docs](https://pixabay.com/api/docs)
+    - Unsplash: [unsplash.com/developers](https://unsplash.com/developers)
+
+    Without any stock photo keys, the Slides Agent generates slides without embedded photos or uses AI-generated images if a `GOOGLE_API_KEY` or `FAL_KEY` is present.
+  </Accordion>
+</AccordionGroup>
+
+## Complete `.env` reference
+
+The following is the full `.env.example` from the repository, showing every supported variable with inline documentation:
+
+```bash
+# ─────────────────────────────────────────────
+# OpenSwarm — environment configuration
+# Copy this file to .env and fill in your keys.
+# Run `python run.py` to launch the onboarding
+# wizard, which fills this file automatically.
+# ─────────────────────────────────────────────
+
+
+# ── Provider (one required) ───────────────────
+
+# OpenAI — set this if using OpenAI as your primary provider.
+OPENAI_API_KEY=
+
+# Anthropic Claude — set this if using Anthropic as your primary provider.
+ANTHROPIC_API_KEY=
+
+# Google Gemini — set this if using Google as your primary provider.
+GOOGLE_API_KEY=
+
+
+# ── Model selection ───────────────────────────
+
+# Override the default model for all agents (set automatically by onboarding).
+# OpenAI example:    DEFAULT_MODEL=gpt-5.2
+# Anthropic example: DEFAULT_MODEL=litellm/claude-sonnet-4-6
+# Google example:    DEFAULT_MODEL=litellm/gemini/gemini-3-flash
+DEFAULT_MODEL=
+
+
+# ── Optional: Composio ────────────────────────
+
+# Composio unlocks 10,000+ external integrations (Gmail, Slack, Google Calendar,
+# HubSpot, GitHub, and more) for the General Agent.
+# Get your key and user ID at https://composio.dev
+COMPOSIO_API_KEY=
+COMPOSIO_USER_ID=
+
+
+# ── Optional: Search ──────────────────────────
+
+# Search API key — enables web search (WebSearchTool), Scholar search, and
+# product search across agents.
+# Get your key at https://www.searchapi.io
+SEARCH_API_KEY=
+
+
+# ── Optional: Images / Video ──────────────────
+
+# Google AI / Gemini — used for image generation, editing, and composition
+# (Gemini 2.5 Flash Image, Gemini 3 Pro Image) across Image Agent, Slides Agent,
+# and Video Agent; also required for Veo video generation (Video Agent).
+# Get your key at https://aistudio.google.com/app/apikey
+GOOGLE_API_KEY=
+
+# Pexels — stock photo search used by Slides Agent (ImageSearch tool).
+# Get your key at https://www.pexels.com/api
+PEXELS_API_KEY=
+
+# Pixabay — stock photo search used by Slides Agent (ImageSearch tool).
+# Get your key at https://pixabay.com/api/docs
+PIXABAY_API_KEY=
+
+# Unsplash — stock photo search used by Slides Agent (ImageSearch tool).
+# Get your key at https://unsplash.com/developers
+UNSPLASH_ACCESS_KEY=
+
+# fal.ai — used for Seedance 1.5 Pro video generation, video editing (Video Agent),
+# and background removal (Image Agent).
+# Get your key at https://fal.ai/dashboard/keys
+FAL_KEY=
+```

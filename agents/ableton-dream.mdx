@@ -1,0 +1,117 @@
+---
+title: "Ableton Dream Agent: Nightly Song Sketch Generator"
+sidebarTitle: "Ableton Dream"
+description: "The Ableton Dream Agent generates personalized Ableton Live Extension TypeScript sketches nightly — grounded in your musical taste profile and ready to drop into Ableton Live Suite."
+---
+
+The Ableton Dream Agent is Glenn Giles's (Unkle Funk's) musical subconscious made code. Every night it generates one new compilable TypeScript sketch — a complete groove template grounded in Glenn's deep house DNA, calibrated to his measured taste fingerprint, and informed by his feedback on past sketches. Drop it into Ableton Live Suite and have a working groove in ten minutes. It thinks in groove, feels in deep house, and ships TypeScript.
+
+## What it generates
+
+Each sketch is a TypeScript module targeting the Ableton Extensions SDK. The module exports six note functions — kick, snare, hats, percussion, bass, and chords — plus metadata constants. Every note array is passed through `humanize()` before being returned, so the patterns feel played, not programmed.
+
+```typescript
+import { initialize, MidiClip, type ActivationContext, type NoteDescription } from "@ableton-extensions/sdk";
+import { humanize } from "../humanizer.js";
+
+export const SKETCH_NAME = "Evocative Name Here";
+export const BPM = 123;
+export const BARS = 8;  // or 16
+export const KEY = "C Minor";
+
+export function kickNotes(): NoteDescription[]  { return humanize([...]); }
+export function snareNotes(): NoteDescription[] { return humanize([...]); }
+export function hatNotes(): NoteDescription[]   { return humanize([...]); }
+export function percNotes(): NoteDescription[]  { return humanize([...]); }
+export function bassNotes(): NoteDescription[]  { return humanize([...]); }
+export function chordNotes(): NoteDescription[] { return humanize([...]); }
+```
+
+Note timing uses beats from clip start (1 beat = 1 quarter note, 1 bar = 4 beats). Separate drum tracks use C3 (pitch 48) as the trigger note. Bass and chord tracks use actual MIDI pitches in key.
+
+When loaded into Ableton Live via the Extension SDK, the sketch creates 6 MIDI tracks — KICK, SNARE, HATS, PERC, BASS, CHORDS — each with color-coded clips containing humanized patterns for 8 or 16 bars. Load your samples, hit play, start layering.
+
+## Tools
+
+<CardGroup cols={3}>
+  <Card title="DreamSongSketch" icon="moon">
+    Generates tonight's sketch. Writes the `.ts` file to `ableton_extensions/built/unkle-funk-song-sketch/src/sketches/{date}.ts`, creates an idea markdown file at `ableton_extensions/ideas/{date}.md` with the vibe story and musical DNA breakdown, and registers the new sketch in `src/index.ts` automatically.
+  </Card>
+  <Card title="SaveFeedback" icon="star">
+    Stores Glenn's rating (1–5) and notes for a named sketch. The feedback is saved as a JSON file in `ableton_extensions/feedback/{date}.json` and read by the dream engine before every new generation. Accepts optional tags (e.g. `afro-house`, `congas`, `keeper`, `too-busy`) for fine-grained pattern tracking.
+  </Card>
+  <Card title="ListSketches" icon="list">
+    Shows all past sketches with their metadata and feedback ratings. Displays date, sketch name, BPM, key, length, and rating. Supports filtering to rated-only sketches and a configurable limit (default: 14 most recent). The agent always calls this before generating to check the last 7 days.
+  </Card>
+</CardGroup>
+
+## The feedback loop
+
+Before generating each new sketch, the agent reads the last 7 days of feedback using `ListSketches`. It applies these weights:
+
+<Accordion title="Rating → next sketch behavior">
+  | Rating | Behavior |
+  |--------|----------|
+  | 5/5 🔥🔥 | More of that element tonight — same pattern type, similar BPM, same key family |
+  | 4/5 🔥 | Lean in that direction, explore a variation on the same idea |
+  | 3/5 👍 | Neutral — try something different |
+  | 1–2/5 ❌ | Don't repeat that structure, kick variation, or pattern type |
+
+  Specific element mentions in the notes are incorporated directly:
+  - "Loved the congas" → rolling conga pattern this week
+  - "Too busy" → reduce the percussion layer tonight
+  - "Bass line was fire" → repeat bass style, vary kick and hats
+  - "Chords felt generic" → try a different chord voicing or placement
+</Accordion>
+
+## Musical DNA
+
+The agent knows Glenn's sound. These parameters are non-negotiable:
+
+<CardGroup cols={2}>
+  <Card title="BPM range" icon="gauge-high">
+    120–126 BPM, weighted toward **123** (Glenn's home base). Occasionally ventures to 120 (slow/heavy), 122 (classic Chicago), 124 (New York house energy), or 126 (rolling forward) for variety.
+  </Card>
+  <Card title="Keys" icon="music">
+    C Minor, D Minor, F Minor, A Minor, Bb Minor. **Minor keys only** — the darkness is part of the soul. Bass and chord tracks always stay in key; drums use C3 as a trigger note.
+  </Card>
+  <Card title="Genres" icon="record-vinyl">
+    Deep house, afro house, soulful house, classic Chicago/Detroit. References: Larry Heard, Frankie Knuckles, Larry Levan, Ron Hardy, Kerri Chandler, Moodymann, Ron Trent, Dennis Ferrer. **Never EDM, never formulaic, never commercial.**
+  </Card>
+  <Card title="Dynamics" icon="wave-square">
+    Loose humanization, wide velocity range, never flat-line. Glenn's taste fingerprint (measured from 139 analyzed favorites) proves he prefers the most dynamic, least-compressed tracks in the dataset. Headroom and dynamic range are part of the feel.
+  </Card>
+</CardGroup>
+
+### Sketch name style
+
+Names are evocative, Chicago-rooted, never generic. They draw from Chicago geography, house music history, late-night feelings, African diaspora references, and spiritual/cosmic themes.
+
+<CardGroup cols={2}>
+  <Card title="✅ Good names" icon="check">
+    - "Slow Burn on State Street"
+    - "4am at the Music Box"
+    - "Lakeshore Drive in November"
+    - "Ron Hardy's Last Set"
+  </Card>
+  <Card title="❌ Bad names" icon="xmark">
+    - "Groove Template #3"
+    - "House Pattern 1"
+    - "Deep House Loop"
+    - "Sketch 07"
+  </Card>
+</CardGroup>
+
+## Example prompts
+
+- "Dream up tonight's sketch"
+- "Rate last night's sketch 4/5, loved the bass line"
+- "Rate 'Slow Burn on State Street' 5/5 — rolling congas and the bass walk were fire"
+- "Show me all my past sketches"
+- "Show me only the rated sketches"
+- "Generate a Chicago double-kick 16-bar idea in D Minor"
+- "What's the idea file for today's sketch?"
+
+<Note>
+  Generated sketches require **Ableton Live Suite 12.4.5** and the **Ableton Extensions SDK** (`@ableton-extensions/sdk`) to load. The TypeScript files must be compiled before use — the extension build pipeline at `ableton_extensions/built/unkle-funk-song-sketch/` handles this. Once compiled, right-click any MIDI track in Ableton to load the sketch via the extension's context menu action.
+</Note>

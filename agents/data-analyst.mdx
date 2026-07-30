@@ -1,0 +1,119 @@
+---
+title: "Data Analyst Agent: Analysis, Charts, and Statistical Models"
+sidebarTitle: "Data Analyst"
+description: "The Data Analyst agent analyzes structured data, builds charts, and runs statistical models inside an isolated IPython kernel. Supports CSV, Excel, and more."
+---
+
+The Data Analyst runs all computation inside an isolated IPython kernel via the `IPythonInterpreter` tool. State persists across tool invocations within the same session, so the agent can load a dataset, clean it, run multiple analyses, generate charts, and save outputs — all in a continuous Python environment without re-importing libraries or reloading data between steps. This makes it practical for long analysis workflows that would otherwise require constant re-initialization.
+
+## Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Data analysis" icon="table">
+    Loads CSV and Excel files into pandas DataFrames, computes aggregations, identifies trends and anomalies, and surfaces KPIs relevant to the user's business question.
+  </Card>
+  <Card title="Visualization" icon="chart-line">
+    Generates charts with matplotlib, seaborn, and plotly. Saves outputs as PNG or SVG to `./mnt/outputs/`. Loads generated images back with `LoadFileAttachment` to visually verify correctness before delivering.
+  </Card>
+  <Card title="Statistical modeling" icon="sigma">
+    Runs regression, clustering, time-series decomposition, and hypothesis tests using scipy, statsmodels, and scikit-learn. Results are always tied back to a concrete business question.
+  </Card>
+  <Card title="External platform data" icon="plug">
+    Connects to Google Analytics, Stripe, Shopify, HubSpot, Salesforce, Google Sheets, BigQuery, Mixpanel, Amplitude, QuickBooks, and more via Composio. Uses `ManageConnections` + `FindTools` before executing any external call.
+  </Card>
+  <Card title="Shell operations" icon="terminal">
+    Uses `PersistentShellTool` for local filesystem operations — moving generated charts, reading environment variables, checking credentials, and renaming output files.
+  </Card>
+  <Card title="Web research" icon="magnifying-glass">
+    Uses `WebSearchTool` to look up API documentation, library references, or external benchmarks when needed during analysis.
+  </Card>
+</CardGroup>
+
+## Supported file formats
+
+| Format | Notes |
+|---|---|
+| CSV (`.csv`) | Loaded directly with `pandas.read_csv()` |
+| Excel (`.xlsx`, `.xls`) | Loaded with `pandas.read_excel()` via `openpyxl` (xlsx) and `xlrd` (xls) |
+| Structured data from external platforms | Fetched via Composio and converted to DataFrames in-kernel |
+
+## Python environment
+
+The `IPythonInterpreter` environment has all of the following libraries installed and available:
+
+```python
+# Data analysis
+import pandas as pd
+import numpy as np
+import scipy
+import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression   # scikit-learn
+
+# Visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+
+# File handling
+import openpyxl          # xlsx read/write
+import xlrd              # xls read
+import requests
+from dotenv import load_dotenv
+```
+
+Charts and analysis outputs are always saved to `./mnt/outputs/` unless the user provides a different output path.
+
+<Note>
+Charts and other output files are saved locally and the file path is included in the agent's response. Use the path to open, share, or hand the file off to another agent (such as the Slides Agent or Docs Agent).
+</Note>
+
+## Workflow
+
+<Steps>
+  <Step title="Clarify the request">
+    Identify the business question, required metrics, data source (file upload or external platform), and time period. Confirm any filters or segments needed.
+  </Step>
+  <Step title="Connect to data sources">
+    For external platforms: run `ManageConnections` to check authentication, then `FindTools` to discover the right Composio tool, then fetch data inside `IPythonInterpreter`.
+
+    For local files: load directly with pandas — no authentication required.
+  </Step>
+  <Step title="Analyze and visualize">
+    Clean and transform data, calculate metrics, identify trends and anomalies. Generate charts and save them to `./mnt/outputs/`. Load images back with `LoadFileAttachment` to verify formatting.
+  </Step>
+  <Step title="Deliver insights">
+    Present concise findings tied to the original business question. Include file paths for every generated chart or output file. Call out data quality assumptions and limitations.
+  </Step>
+</Steps>
+
+## Example prompts
+
+```text
+Analyze this CSV file and show me the key trends. Highlight any anomalies.
+```
+
+```text
+Create a bar chart of monthly revenue from this Excel file and save it as a PNG.
+```
+
+```text
+Run a linear regression on this sales dataset and tell me which features predict revenue best.
+```
+
+```text
+Connect to my Google Analytics and summarize last month's top traffic sources and conversion rates.
+```
+
+```text
+Build a dashboard with charts from my Stripe data — monthly MRR, churn rate, and new subscriber count.
+```
+
+## Output format
+
+A completed analysis always includes:
+
+- **Scope and Sources** — data sources, time period, metrics examined
+- **Key Findings** — 3–5 most important insights in plain language
+- **What to Do Next** — immediate actionable recommendations, prioritized by impact
+- **Assumptions and Limits** — data quality notes, missing information, confidence level
+- **Follow-Up Actions** — additional analysis worth running, data to track going forward

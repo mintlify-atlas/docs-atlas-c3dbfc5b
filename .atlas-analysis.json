@@ -1,0 +1,98 @@
+{
+  "projectType": "saas",
+  "projectName": "OpenSwarm",
+  "projectDescription": "An open-source, fully customizable multi-agent AI system that coordinates specialized agents (research, slides, docs, images, video, music production, and more) from a single terminal prompt.",
+  "theme": "almond",
+  "primaryColor": "#7c7c7c",
+  "lightColor": "#121212",
+  "darkColor": "#c1c1c1",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Agents",
+            "pages": [
+              "agents/overview",
+              "agents/orchestrator",
+              "agents/virtual-assistant",
+              "agents/deep-research",
+              "agents/data-analyst",
+              "agents/slides-agent",
+              "agents/docs-agent",
+              "agents/image-generation",
+              "agents/video-generation",
+              "agents/reference-finder",
+              "agents/ableton-dream"
+            ]
+          },
+          {
+            "group": "Music Features",
+            "pages": [
+              "music/music-curation",
+              "music/taste-profile",
+              "music/ableton-extensions"
+            ]
+          },
+          {
+            "group": "Deployment & Operations",
+            "pages": [
+              "deployment/docker",
+              "deployment/api-server",
+              "deployment/website-pipeline"
+            ]
+          },
+          {
+            "group": "Extending OpenSwarm",
+            "pages": [
+              "extending/custom-agents",
+              "extending/custom-tools",
+              "extending/composio-integrations"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "10 specialized AI agents coordinated by a central orchestrator",
+    "One-command npm install with interactive setup wizard",
+    "Slides, documents, images, and video generation from a single prompt",
+    "House music production tools: Reference Finder, Ableton Dream Agent, and taste-aware curation engine",
+    "10,000+ external integrations via Composio (Gmail, Slack, GitHub, Spotify, and more)",
+    "FastAPI server mode for API-driven deployments",
+    "Fully forkable — customize every agent's instructions and tools",
+    "Docker support for containerized deployments",
+    "Automated website publish pipeline via GitHub Actions",
+    "Multi-provider support: OpenAI, Anthropic Claude, Google Gemini"
+  ],
+  "publicApiSurface": [
+    "openswarm (npm CLI entry point)",
+    "python swarm.py (interactive TUI)",
+    "python server.py (FastAPI server on port 8080)",
+    "python onboard.py (setup wizard)",
+    "create_agency() (Python factory function in swarm.py)",
+    "Orchestrator agent: routing via SendMessage and Handoff",
+    "Virtual Assistant agent: file/email/calendar/Slack tools + Composio",
+    "Deep Research agent: evidence-based web research with citations",
+    "Data Analyst agent: IPython kernel, charts, statistical analysis",
+    "Slides Agent: HTML → PPTX export pipeline",
+    "Docs Agent: Word documents and PDF creation/conversion",
+    "Image Generation Agent: Gemini / fal.ai generate + edit + combine",
+    "Video Generation Agent: Sora / Veo / Seedance generation + editing",
+    "Reference Finder agent: audio capture → feature extraction → SearchReferences",
+    "Ableton Dream Agent: DreamSongSketch / SaveFeedback / ListSketches tools",
+    "Music Curation engine: scoring.py, discovery.py, publish.py pipeline",
+    "DEFAULT_MODEL env var (overrides model for all agents)",
+    "shared_tools/: ManageConnections, SearchTools, FindTools, ExecuteTool, CopyFile"
+  ]
+}

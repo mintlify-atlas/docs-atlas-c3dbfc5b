@@ -1,0 +1,125 @@
+---
+title: "Virtual Assistant Agent: Email, Calendar, Files, and Integrations"
+sidebarTitle: "Virtual Assistant"
+description: "The Virtual Assistant handles everyday tasks — email drafting, calendar management, Slack messaging, file editing, and 10,000+ external integrations via Composio."
+---
+
+The Virtual Assistant is OpenSwarm's general-purpose administrative agent. It acts as an elite executive assistant: it handles email across Gmail and Outlook, manages Google Calendar and Outlook Calendar events, sends and reads Slack messages, reads and edits local files, and connects to over 10,000 external systems through Composio. For heavier tasks it knows when to hand off — deep research goes to the Deep Research agent, data analysis goes to the Data Analyst — so it stays focused on what it does best: saving you time on administrative work.
+
+## Built-in tools
+
+These tools are purpose-built for the Virtual Assistant and take priority over generic Composio calls.
+
+<AccordionGroup>
+  <Accordion title="Email" icon="envelope">
+    | Tool | What it does |
+    |---|---|
+    | `DraftEmail` | Creates a draft in Gmail or Outlook; supports thread replies via `thread_id` (Gmail) or `reply_to_message_id` (Outlook) |
+    | `FindEmails` | Searches emails with flexible filters — Gmail query syntax (`is:unread`, `from:`, `subject:`, `has:attachment`) or Outlook structured filters (`folder`, `is_read`, `from_address`, `subject_contains`) |
+    | `ReadEmail` | Reads the full content of a specific email by message ID |
+    | `SendDraft` | Sends an existing draft by draft ID |
+    | `DeleteDraft` | Deletes a draft by draft ID |
+    | `AddLabelToEmail` | Adds a Gmail label to a message |
+    | `RemoveLabelFromEmail` | Removes a Gmail label from a message |
+    | `ManageLabels` | Creates, lists, or deletes Gmail labels |
+  </Accordion>
+  <Accordion title="Calendar" icon="calendar">
+    | Tool | What it does |
+    |---|---|
+    | `CreateCalendarEvent` | Creates an event in Google Calendar or Outlook; supports attendees, timezone, duration in hours/minutes, and optional video meeting link (Google Meet or Teams) |
+    | `CheckEventsForDate` | Returns all events for a given date from Google Calendar or Outlook, sorted by start time; handles all-day and timed events |
+    | `DeleteCalendarEvent` | Deletes a calendar event by event ID |
+    | `RescheduleCalendarEvent` | Updates the start/end time of an existing event |
+  </Accordion>
+  <Accordion title="Slack" icon="slack">
+    | Tool | What it does |
+    |---|---|
+    | `SendSlackMessage` | Sends a message to a channel (`#general`), a channel ID (`C06NX4Q1ACE`), or a DM (`@username`); supports threaded replies via `thread_ts` |
+    | `ReadSlackMessages` | Reads messages from a channel or thread |
+    | `CheckUnreadSlackMessages` | Returns unread messages across connected Slack workspaces |
+    | `GetSlackUserInfo` | Looks up a Slack user's profile, display name, and ID |
+  </Accordion>
+  <Accordion title="Files" icon="folder-open">
+    | Tool | What it does |
+    |---|---|
+    | `ReadFile` | Reads a local file with optional line offset and limit; returns content with line numbers |
+    | `WriteFile` | Creates or overwrites a local file at an absolute path; creates parent directories automatically |
+    | `EditFile` | Performs exact string replacements in a file; fails if `old_string` is not unique unless `replace_all=True` |
+    | `ListDirectory` | Lists the contents of a local directory |
+  </Accordion>
+  <Accordion title="Utilities" icon="wrench">
+    | Tool | What it does |
+    |---|---|
+    | `GetCurrentTime` | Returns the current date and time |
+    | `ProductSearch` | Searches for products across e-commerce sources |
+    | `ScholarSearch` | Searches academic papers and scholarly sources |
+    | `ListSkills` | Lists available Composio connections and capabilities |
+  </Accordion>
+</AccordionGroup>
+
+## Composio integrations
+
+When no built-in tool covers the task, the Virtual Assistant extends itself on-the-fly using Composio — a platform that connects to 10,000+ external services. The agent follows a strict four-step discovery sequence to avoid wasted API calls:
+
+<Steps>
+  <Step title="Check connections">
+    Run `ManageConnections` to see which external systems are already authenticated. If the required system is connected, proceed directly to tool discovery.
+  </Step>
+  <Step title="Discover tools by intent">
+    Run `SearchTools` with a natural-language `use_case` query (e.g., `"send a Slack notification"`) to surface candidate tools from the connected systems.
+  </Step>
+  <Step title="Inspect parameters">
+    Run `FindTools` with `include_args=True` and the specific tool names from the previous step to get exact parameter schemas before executing.
+  </Step>
+  <Step title="Execute">
+    For single, straightforward actions use `ExecuteTool`. For multi-step workflows that require loops, data transformation, or chaining multiple API calls use `ProgrammaticToolCalling` (IPython kernel).
+  </Step>
+</Steps>
+
+**Supported toolkit families:**
+
+| Category | Toolkits |
+|---|---|
+| Email | GMAIL, OUTLOOK |
+| Calendar / Scheduling | GOOGLECALENDAR, OUTLOOK, CALENDLY |
+| Video / Meetings | ZOOM, GOOGLEMEET, MICROSOFT_TEAMS |
+| Messaging | SLACK, WHATSAPP, TELEGRAM, DISCORD |
+| Documents / Notes | GOOGLEDOCS, GOOGLESHEETS, NOTION, AIRTABLE, CODA |
+| Storage | GOOGLEDRIVE, DROPBOX |
+| Project Management | NOTION, JIRA, ASANA, TRELLO, CLICKUP, MONDAY, BASECAMP |
+| CRM / Sales | HUBSPOT, SALESFORCE, PIPEDRIVE, APOLLO |
+| Payments / Accounting | STRIPE, SQUARE, QUICKBOOKS, XERO, FRESHBOOKS |
+| Customer Support | ZENDESK, INTERCOM, FRESHDESK |
+| Marketing / Email | MAILCHIMP, SENDGRID |
+| Social Media | LINKEDIN, TWITTER, INSTAGRAM |
+| E-commerce | SHOPIFY |
+| Signatures | DOCUSIGN |
+| Design / Collaboration | FIGMA, CANVA, MIRO |
+| Development | GITHUB |
+| Analytics | AMPLITUDE, MIXPANEL, SEGMENT |
+
+<Tip>
+Composio integrations require a Composio account and per-service authentication. Run `ManageConnections` to see what is already connected and get an auth link for anything that isn't.
+</Tip>
+
+## Example prompts
+
+```text
+Send a summary of my unread emails to the #updates Slack channel.
+```
+
+```text
+Schedule a 30-minute standup with alex@example.com next Tuesday at 10am Eastern.
+```
+
+```text
+Draft a follow-up email to everyone from my last meeting and save it as a Gmail draft.
+```
+
+```text
+Check my Google Calendar for tomorrow and let me know if I have any conflicts before 2pm.
+```
+
+```text
+Edit the file at /Users/me/projects/notes.md and replace "draft" with "final" everywhere.
+```

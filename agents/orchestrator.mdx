@@ -1,0 +1,114 @@
+---
+title: "Orchestrator Agent: Routing and Coordination"
+sidebarTitle: "Orchestrator"
+description: "The Orchestrator is OpenSwarm's entry point. It interprets every user request and routes it to specialists via SendMessage (parallel) or Handoff (single agent), never executing tasks itself."
+---
+
+The Orchestrator is the only agent every user interacts with by default. Its entire job is to interpret what you want, identify which specialist(s) can deliver it, and route the work — nothing more. It never researches, writes, analyzes, or creates files. This strict routing-only boundary is what makes OpenSwarm composable: because the Orchestrator never attempts tasks itself, specialists are always invoked with the full context they need and can iterate with the user without an intermediary getting in the way.
+
+## Operating modes
+
+The Orchestrator picks exactly one of two communication patterns per subtask.
+
+<Tabs>
+  <Tab title="Parallel Delegation (SendMessage)">
+    **Use when:** two or more specialist subtasks are independent and can run simultaneously.
+
+    The Orchestrator fires `SendMessage` calls to each specialist in parallel, waits for all outputs, then synthesizes a single unified response for the user.
+
+    **Examples where this applies:**
+    - Run web research and data analysis at the same time
+    - Generate a document and a visual asset in parallel
+    - Kick off a slide deck and a video brief simultaneously
+
+    **Critical rule:** `SendMessage` is never used for a single specialist, even to fetch a clarifying question or "stay in control of the chat." If only one specialist is needed, use `Handoff`. Clarifying questions belong to the specialist, after the handoff.
+
+    **File delivery:** Specialists include file paths in their responses. The Orchestrator summarizes what was delivered — it never asks specialists to resend raw content, forward markdown/HTML body text, or paste full document contents into chat unless the user explicitly requests raw source text.
+  </Tab>
+  <Tab title="Full-Context Transfer (Handoff)">
+    **Use when:** the task can be handled by a single specialist — this is the default for any single-agent request.
+
+    `Handoff` passes the entire conversation history to the chosen specialist. The specialist then works directly with the user without the Orchestrator in the loop, which means faster iteration, no message relay overhead, and no loss of context.
+
+    **Examples where this applies:**
+    - Any task owned end-to-end by one specialist (slides, docs, research, video, image, data)
+    - Detailed slide polishing across multiple revision rounds
+    - Deep document editing with line-by-line user feedback
+    - Video refinement where the user repeatedly approves or adjusts outputs
+
+    **Rule:** if only one specialist is needed, always use `Handoff`. `SendMessage` is reserved for genuinely parallel multi-specialist workstreams.
+  </Tab>
+</Tabs>
+
+## Routing guide
+
+The Orchestrator maps request types to specialists using this guide:
+
+| Request type | Routed to |
+|---|---|
+| Administrative workflows, external systems, messaging, scheduling | **Virtual Assistant** |
+| Evidence-based research and source-backed analysis | **Deep Research** |
+| Data analysis, KPIs, charts, and analytical insights | **Data Analyst** |
+| Presentation creation, editing, and exports | **Slides Agent** |
+| Document creation, editing, and conversion | **Docs Agent** |
+| Video generation, editing, and assembly | **Video Agent** |
+| Image generation, editing, and composition | **Image Agent** |
+| House music reference matching, Beatport/Traxsource chart lookups, live audio capture | **Reference Finder** |
+| Ableton Live sketches, Extensions SDK, rating or listing sketches, tonight's dream | **Ableton Dream Agent** |
+
+## File delivery rule
+
+Specialists own file delivery end-to-end. When a specialist creates a file it includes the path in its response. The Orchestrator:
+
+- Reports a concise status summary and what was delivered
+- Never asks a specialist to resend file content in chat
+- Never forwards raw markdown, HTML, or body text unless the user explicitly asks for the raw source
+- Never pastes full document contents into the user chat by default
+
+## What the Orchestrator will never do
+
+<Warning>
+The following actions are explicitly off-limits for the Orchestrator. If you see it attempting any of these, it is behaving incorrectly.
+</Warning>
+
+- Conduct research or browse the web
+- Write content, draft documents, or create presentations
+- Analyze data or generate charts
+- Create, edit, or export images or video
+- Answer substantive domain questions that belong to a specialist
+- Synthesize or generate deliverables of any kind
+
+## Handling unclear requests
+
+<Note>
+If a request is unclear, ambiguous, or no suitable specialist exists for it, the Orchestrator asks the user for clarification — it does not attempt to do the work itself. This is by design: a routing agent that guesses produces worse outcomes than one that asks a single focused question.
+</Note>
+
+## Example routing decisions
+
+<Tabs>
+  <Tab title="Single-specialist task">
+    **User:** "Write an executive summary for our Q3 product launch."
+
+    **Decision:** One specialist needed → `Handoff` to **Docs Agent**.
+
+    The full conversation history transfers to the Docs Agent, which gathers requirements and creates the document directly with the user.
+  </Tab>
+  <Tab title="Parallel multi-specialist task">
+    **User:** "Build a full launch package: research the competitive landscape, create a slide deck, and draft an executive memo."
+
+    **Decision:** Three independent subtasks → `SendMessage` to **Deep Research**, **Slides Agent**, and **Docs Agent** in parallel.
+
+    The Orchestrator waits for all three outputs, then delivers a unified summary with the file paths from each specialist.
+  </Tab>
+  <Tab title="Ambiguous request">
+    **User:** "Can you help me with my project?"
+
+    **Decision:** Request is too vague to route → Orchestrator asks: "What kind of project, and what do you need done? For example: research, a slide deck, data analysis, or something else?"
+  </Tab>
+  <Tab title="Data then slides">
+    **User:** "Analyze my sales data and turn the insights into a polished executive deck."
+
+    **Decision:** Sequential dependency — analysis must come first, but the two agents can be chained. Orchestrator `Handoff`s to **Data Analyst** first; once the analysis is complete, hands off to **Slides Agent** with the findings included.
+  </Tab>
+</Tabs>

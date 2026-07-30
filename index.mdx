@@ -1,20 +1,104 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "OpenSwarm: Open-Source Multi-Agent AI Team"
+sidebarTitle: "Home"
+description: "OpenSwarm coordinates 10 specialized AI agents from a single terminal prompt — create slides, research reports, videos, images, documents, and music production assets without switching tools."
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+OpenSwarm is a fully open-source multi-agent AI system that gives you a complete AI team from your terminal. Instead of one model trying to do everything, you get specialists — an Orchestrator that routes work, and dedicated agents for research, data analysis, slides, documents, images, video, and even house music production. Install in 30 seconds with npm, connect your API keys, and start creating.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install OpenSwarm and run your first multi-agent task in under a minute.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Set up API keys, choose your AI provider, and enable optional integrations.
+  </Card>
+  <Card title="Agent Overview" icon="users" href="/agents/overview">
+    Meet the 10 specialized agents and learn what each one does.
+  </Card>
+  <Card title="Extend OpenSwarm" icon="wrench" href="/extending/custom-agents">
+    Fork the repo and customize agents, tools, and instructions for your use case.
+  </Card>
+</CardGroup>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+## What OpenSwarm can do for you
+
+Send one prompt and watch specialists collaborate automatically. The Orchestrator interprets your goal, dispatches the right agents in parallel or in sequence, and delivers a unified result.
+
+<CardGroup cols={3}>
+  <Card title="Research & Analysis" icon="magnifying-glass">
+    Deep Research agent conducts evidence-based web research with citations. Data Analyst runs statistical models and builds charts inside an isolated IPython kernel.
+  </Card>
+  <Card title="Documents & Slides" icon="file">
+    Docs Agent produces Word documents and PDFs. Slides Agent generates fully designed HTML decks and exports them to PPTX.
+  </Card>
+  <Card title="Images & Video" icon="photo-film">
+    Image Generation Agent uses Gemini and fal.ai for generation, editing, and compositing. Video Agent produces clips with Sora, Veo, and Seedance.
+  </Card>
+  <Card title="10,000+ Integrations" icon="plug">
+    Virtual Assistant connects to Gmail, Slack, GitHub, HubSpot, Google Calendar, and thousands more services via Composio.
+  </Card>
+  <Card title="Music Production" icon="music">
+    Reference Finder matches your mix against current chart tracks. Ableton Dream Agent generates nightly song sketch templates ready to drop into Ableton Live.
+  </Card>
+  <Card title="Fully Customizable" icon="code-fork">
+    Every agent's instructions, tools, and model are in plain files. Fork the repo and reshape the entire swarm for your domain in minutes.
+  </Card>
+</CardGroup>
+
+## Get started in 3 steps
+
+<Steps>
+  <Step title="Install via npm">
+    ```bash
+    npm install -g @vrsen/openswarm
+    openswarm
+    ```
+    Node.js 20+ is required. Python 3.10+ is auto-installed during setup.
+  </Step>
+  <Step title="Add your API key">
+    The interactive setup wizard walks you through choosing an AI provider (OpenAI, Anthropic, or Google Gemini) and entering your key. Optional add-ons for Composio, web search, image generation, and video are configured in the same wizard.
+  </Step>
+  <Step title="Send your first prompt">
+    Type any task — "Create an investor pitch for my startup", "Research my top 5 competitors", or "Analyze this CSV and build charts" — and the Orchestrator routes the work to the right specialists automatically.
+  </Step>
+</Steps>
+
+<Note>
+  OpenSwarm is built on [Agency Swarm](https://github.com/VRSEN/agency-swarm). Tools gracefully degrade when optional API keys are missing — you'll get clear instructions on what to enable for each capability.
+</Note>
+
+## Explore the agents
+
+<CardGroup cols={2}>
+  <Card title="Orchestrator" icon="diagram-project" href="/agents/orchestrator">
+    Routes every request to the right specialist. Never executes tasks — pure coordination via SendMessage and Handoff.
+  </Card>
+  <Card title="Virtual Assistant" icon="calendar" href="/agents/virtual-assistant">
+    Email, calendar, Slack, file management, and 10,000+ external integrations via Composio.
+  </Card>
+  <Card title="Deep Research" icon="book-open" href="/agents/deep-research">
+    Evidence-based web research with citations, balanced analysis, and scholarly search.
+  </Card>
+  <Card title="Data Analyst" icon="chart-bar" href="/agents/data-analyst">
+    Statistical analysis, KPI tracking, and chart generation inside an isolated IPython kernel.
+  </Card>
+  <Card title="Slides Agent" icon="presentation-screen" href="/agents/slides-agent">
+    Full HTML slide deck generation with PPTX export, image search, and theme management.
+  </Card>
+  <Card title="Docs Agent" icon="file-word" href="/agents/docs-agent">
+    Create and edit Word documents and PDFs from outlines or raw content.
+  </Card>
+  <Card title="Image Generation" icon="image" href="/agents/image-generation">
+    AI image generation, editing, background removal, and image combination using Gemini and fal.ai.
+  </Card>
+  <Card title="Video Generation" icon="video" href="/agents/video-generation">
+    AI video generation with Sora, Veo, and Seedance — plus trimming, combining, and subtitle tools.
+  </Card>
+  <Card title="Reference Finder" icon="waveform-lines" href="/agents/reference-finder">
+    Capture live audio, extract features, and find matching reference tracks from Beatport and Traxsource charts.
+  </Card>
+  <Card title="Ableton Dream Agent" icon="guitar" href="/agents/ableton-dream">
+    Nightly song sketch templates for Ableton Live — personalized TypeScript Extensions SDK code.
+  </Card>
+</CardGroup>

@@ -1,0 +1,89 @@
+---
+title: "Video Generation Agent: AI Video Creation and Editing"
+sidebarTitle: "Video Generation"
+description: "Generate videos with OpenAI Sora, Google Veo, and Seedance via fal.ai. Trim, combine, add subtitles, edit audio, and assemble multi-clip productions."
+---
+
+The Video Generation Agent is a full-stack video production specialist that creates, edits, and assembles AI-generated video clips. Before any generation, it gathers five key inputs from the user — length, format, style, sound, and audience — then builds model-optimized prompts of 100 words or more and selects the best available provider. All finished videos are stitched into a final cut immediately with `CombineVideos`, and paths are always included in the response.
+
+## Generation tools
+
+<CardGroup cols={2}>
+  <Card title="GenerateVideo" icon="clapperboard">
+    Core text-to-video and image-to-video generation tool. Supports three providers: Veo (default), Sora, and Seedance 1.5 Pro. Accepts optional `first_frame_ref` (image-to-video for all models) and `asset_image_ref` (Veo-only, keeps a subject consistent while allowing camera movement). Returns the video path, thumbnail spritesheet, and last frame for chaining.
+  </Card>
+  <Card title="CombineVideos" icon="layer-group">
+    Merges an ordered list of video clips into a single MP4 using instant-cut transitions (ffmpeg concat demuxer). Used automatically after all segments are generated to deliver a final cut without waiting for per-clip approval.
+  </Card>
+  <Card title="TrimVideo" icon="scissors">
+    Removes unwanted seconds from the start or end of a clip using ffmpeg. Essential for cleaning up motion artifacts at clip boundaries or adjusting exact duration before combining.
+  </Card>
+</CardGroup>
+
+## Editing tools
+
+<CardGroup cols={2}>
+  <Card title="EditVideoContent" icon="pen-to-square">
+    AI-powered video transformation with three modes:
+    - **`edit`** — transforms content via prompt using Kling O3 Standard (fal.ai), preserving motion. Best for targeted content changes with small composition shifts. Max ~10s; trim longer clips first.
+    - **`remix`** — re-generates a Sora video job with a new prompt at higher fidelity. Composition and pacing can change significantly.
+    - **`extend`** — appends 8 seconds of continuation to a Veo video. Requires the original `veo_video_uri`. Currently limited to 16:9 source videos.
+  </Card>
+  <Card title="AddSubtitles" icon="closed-captioning">
+    Burns animated, word-level subtitles into a video. Uses OpenAI Whisper API for automatic transcription and precise timing. Supports configurable font size, position (top/center/bottom), words per clip, and highlight color. Accepts the original script as a transcription hint.
+  </Card>
+  <Card title="EditAudio" icon="volume-high">
+    Replaces a video's visuals with another video's visuals while keeping the original audio track, or vice versa. Useful for laying b-roll footage over a narration track. Supports `pad_seconds` for timing offsets between audio and visual sources.
+  </Card>
+  <Card title="EditImage" icon="image">
+    Edits a single video frame or reference image using Gemini 2.5 Flash Image. Accepts a natural language edit prompt and produces up to 4 variants. Used for compositing reference frames before image-to-video generation.
+  </Card>
+</CardGroup>
+
+## Supported providers
+
+<Tabs>
+  <Tab title="Veo (Google)">
+    **Requires `GOOGLE_API_KEY`**
+
+    **Default provider** for most video generation tasks.
+
+    - **Model**: `veo-3.1-generate-preview` (use `veo-3.1-fast-generate-preview` when speed is priority)
+    - **Durations**: 4s, 6s, 8s
+    - **Aspect ratios**: 16:9 and 9:16
+    - **Audio**: Explicit prompt-driven audio generation including dialogue (quoted text), sound effects, and ambient noise
+    - **Unique feature**: `asset_image_ref` — feed a subject/product image to keep it visually consistent while the camera moves freely around it
+    - **Extension**: Veo clips can be extended by 8 seconds using `EditVideoContent` with `action="extend"`
+  </Tab>
+  <Tab title="Sora (OpenAI)">
+    **Requires `OPENAI_API_KEY`**
+
+    Use Sora when absolute highest visual fidelity is required, or when 12-second duration is needed.
+
+    - **Durations**: 4s, 8s, 12s
+    - **Audio**: Generates audio automatically
+    - **Unique feature**: `remix` action in `EditVideoContent` — re-generate a Sora job with a new prompt at high fidelity
+  </Tab>
+  <Tab title="Seedance (fal.ai)">
+    **Requires `FAL_KEY`**
+
+    Cost-efficient option from ByteDance, good for quick drafts and iterations.
+
+    - **Model**: `seedance-1.5-pro` via fal.ai
+    - **Durations**: Any integer from 4–12 seconds
+    - **Audio**: Generates audio automatically
+  </Tab>
+</Tabs>
+
+## Example prompts
+
+- "Generate a product launch video with smooth camera movement, 24 seconds total"
+- "Add subtitles to this video in English"
+- "Combine these clips into a 60-second reel"
+- "Create an animated explainer about how our AI works — cinematic, 16:9, no voiceover"
+- "Extend this Veo clip by 8 more seconds, same scene"
+- "Replace the background music in this clip with the audio from another track"
+
+<Note>
+  Video generation requires at least one provider key (`OPENAI_API_KEY`, `GOOGLE_API_KEY`, or `FAL_KEY`). If a requested model is unavailable, the agent switches to an available alternative and informs you. Veo is the recommended default — it offers the best combination of quality, speed, and explicit audio control.
+</Note>

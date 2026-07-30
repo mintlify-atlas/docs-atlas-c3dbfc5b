@@ -1,47 +1,117 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with OpenSwarm in 60 Seconds"
+sidebarTitle: "Quickstart"
+description: "Install OpenSwarm via npm and send your first multi-agent prompt in under a minute. Requires Node.js 20+ — Python 3.10+ is auto-installed."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+By the end of this guide you'll have OpenSwarm running in your terminal, authenticated with your chosen AI provider, and ready to accept your first prompt. The recommended path takes under 60 seconds: one `npm install` command launches a setup wizard that handles Python dependencies, provider authentication, and optional integrations automatically.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Install OpenSwarm">
+    OpenSwarm is distributed as an npm package. Install it globally with:
 
     ```bash
-    npm install your-package
+    npm install -g @vrsen/openswarm
     ```
+
+    **Requirements:** Node.js 20+ must be installed on your machine. Python 3.10+ is detected and installed automatically — you do not need to set up a Python environment yourself.
+
+    After installation completes, run:
+
+    ```bash
+    openswarm
+    ```
+
+    This launches the interactive setup wizard. If Python dependencies are missing, they are installed silently on first run using `uv`.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Run the setup wizard">
+    The setup wizard walks you through three steps:
+
+    **Step 1 — Choose your AI provider.** Select one of the three supported providers:
+
+    - **OpenAI** — uses `gpt-5.2` by default; required for Sora video generation
+    - **Anthropic** — uses `litellm/claude-sonnet-4-6` by default; recommended for best slide HTML output
+    - **Google Gemini** — uses `litellm/gemini/gemini-3-flash` by default; required for Gemini image generation and Veo video
+
+    **Step 2 — Enter your API key.** The wizard prompts for your provider's API key (input is masked). Your key is written directly to `.env` — it never leaves your machine.
+
+    **Step 3 — Enable optional add-ons.** Select any combination of:
+
+    | Add-on | What it unlocks |
+    |---|---|
+    | Web Search | Web, Scholar & product search for all agents (`SEARCH_API_KEY`) |
+    | Composio | 10,000+ integrations — Gmail, Slack, GitHub, HubSpot (`COMPOSIO_API_KEY` + `COMPOSIO_USER_ID`) |
+    | Google Gemini | Image generation, editing, and Veo video (`GOOGLE_API_KEY`) |
+    | fal.ai | Seedance 1.5 Pro video, editing, background removal (`FAL_KEY`) |
+    | Stock photos | Pexels / Pixabay / Unsplash image search for Slides Agent |
+
+    Once the wizard completes, OpenSwarm starts automatically and drops you into the interactive terminal UI.
+
+    <Tip>
+      All tools gracefully degrade when optional API keys are missing. You'll receive a clear message explaining what to add rather than a silent failure — so it's safe to start without every key and add them later.
+    </Tip>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
+  <Step title="Send your first prompt">
+    Type a prompt directly into the terminal UI. Here are a few to get you started:
+
     ```
+    Create a complete investor pitch for my startup
+    ```
+
+    ```
+    Research my top 5 competitors and write 3 SEO-optimized blog posts
+    ```
+
+    ```
+    Analyze this CSV and create a quarterly report with charts
+    ```
+
+    ```
+    Generate a product launch video with animations
+    ```
+
+    The Orchestrator receives your message, breaks it into parallel workstreams, and routes each piece to the right specialist. Completed files are saved locally and their paths are printed in the response.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+<Note>
+  For a full reference of every environment variable — including all provider keys, model selection, and optional integration keys — see the [Configuration](/configuration) page.
+</Note>
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+## Alternative installation methods
+
+<CodeGroup>
+  ```bash Local development
+  git clone https://github.com/VRSEN/openswarm.git
+  cd openswarm
+  python swarm.py
+  ```
+
+  ```bash Docker
+  git clone https://github.com/VRSEN/openswarm.git
+  cd openswarm
+  cp .env.example .env
+  # Edit .env and add your API keys
+  docker-compose up --build
+  ```
+
+  ```bash API server
+  # After cloning and configuring .env:
+  python server.py
+  # Starts a FastAPI server on localhost:8080
+  ```
+</CodeGroup>
+
+### Local development
+
+Clone the repo and run `python swarm.py` directly to launch the Agency Swarm terminal UI with full `show_reasoning=True` output. This is the best option if you want to customize agents, add tools, or extend the swarm for your own use case. Dependencies are bootstrapped automatically via `run_utils._bootstrap()` on first run.
+
+### Docker
+
+Copy `.env.example` to `.env`, add your keys, then run `docker-compose up --build`. Docker is the easiest way to deploy OpenSwarm on a server or share a reproducible environment with a team.
+
+### API server
+
+`python server.py` starts a FastAPI server on `localhost:8080`. This exposes OpenSwarm's agent orchestration over HTTP, making it easy to integrate the swarm into existing applications or trigger agents from CI/CD pipelines.

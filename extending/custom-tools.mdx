@@ -1,0 +1,233 @@
+---
+title: "Write Custom Tools for OpenSwarm Agents"
+sidebarTitle: "Custom Tools"
+description: "Every OpenSwarm agent gets its capabilities from tools. Create a Python class in tools/ with a run() method and the agent can use it immediately."
+---
+
+Tools are the action layer of each agent. An agent can reason, plan, and generate text on its own — but every interaction with the outside world happens through a tool. Sending an email, reading a file, running a search query, calling an API — all of that is a tool call. OpenSwarm agents inherit from Agency Swarm's `BaseTool`, which means every tool you write is automatically available to the agent's model as a structured function call with validated inputs.
+
+## Tool anatomy
+
+Every tool in the codebase follows the same pattern: a `BaseTool` subclass with Pydantic fields for inputs and a `run()` method that does the work. Here is the actual `WriteFile` tool from `virtual_assistant/tools/WriteFile.py`:
+
+```python
+import os
+from agency_swarm.tools import BaseTool
+from pydantic import Field
+
+
+class WriteFile(BaseTool):
+    """
+    Writes a file to the local filesystem.
+
+    Usage:
+    - This tool will overwrite the existing file if there is one at the provided path.
+    - If this is an existing file, you MUST use the ReadFile tool first to read the file's contents.
+    - The file_path must be an absolute path.
+    """
+
+    file_path: str = Field(
+        ...,
+        description="Absolute path to the file to write.",
+    )
+    content: str = Field(..., description="The content to write to the file")
+
+    def run(self):
+        try:
+            if not os.path.isabs(self.file_path):
+                return f"Error: File path must be absolute: {self.file_path}"
+
+            file_exists = os.path.exists(self.file_path)
+
+            if file_exists:
+                if not os.path.isfile(self.file_path):
+                    return f"Error: Path exists but is not a file: {self.file_path}"
+                operation = "overwritten"
+            else:
+                directory = os.path.dirname(self.file_path)
+                if directory and not os.path.exists(directory):
+                    os.makedirs(directory, exist_ok=True)
+                operation = "created"
+
+            with open(self.file_path, "w", encoding="utf-8") as file:
+                file.write(self.content)
+
+            file_size = os.path.getsize(self.file_path)
+            line_count = self.content.count("\n") + (
+                1 if self.content and not self.content.endswith("\n") else 0
+            )
+
+            return f"Successfully {operation} file: {self.file_path}\nSize: {file_size} bytes, Lines: {line_count}"
+
+        except PermissionError:
+            return f"Error: Permission denied writing to file: {self.file_path}"
+        except Exception as e:
+            return f"Error writing file: {str(e)}"
+
+
+if __name__ == "__main__":
+    tool = WriteFile(file_path="/tmp/test.txt", content="Hello from WriteFile\n")
+    print(tool.run())
+```
+
+And here is `ReadFile` — the read counterpart — showing how `Optional` fields work and how the tool handles large files gracefully:
+
+```python
+import os
+from typing import Optional
+from agency_swarm.tools import BaseTool
+from pydantic import Field
+
+
+class ReadFile(BaseTool):
+    """
+    Reads a file from the local filesystem.
+    Use this tool to read file contents before editing or to understand existing code.
+    """
+
+    file_path: str = Field(..., description="The absolute path to the file to read")
+    offset: Optional[int] = Field(
+        None,
+        description="The line number to start reading from. Only provide if the file is too large to read at once",
+    )
+    limit: Optional[int] = Field(
+        None,
+        description="The number of lines to read. Only provide if the file is too large to read at once.",
+    )
+
+    def run(self):
+        if not os.path.exists(self.file_path):
+            return f"Error: File does not exist: {self.file_path}"
+
+        with open(self.file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+
+        start_line = (self.offset - 1) if self.offset else 0
+        selected_lines = lines[start_line : start_line + (self.limit or 2000)]
+
+        result_lines = [
+            f"{i:>6}\t{line.rstrip()}\n"
+            for i, line in enumerate(selected_lines, start=start_line + 1)
+        ]
+        return "".join(result_lines)
+```
+
+## Tool requirements
+
+Every tool in OpenSwarm follows these rules, drawn directly from the Agency Swarm framework and the codebase conventions:
+
+- **Must inherit from `BaseTool`** — imported from `agency_swarm.tools`. This is what registers the class as a callable function in the agent's model context.
+- **Must implement `run()`** — the method the framework calls when the agent invokes the tool. It must return a string (or something that stringifies cleanly).
+- **All inputs are Pydantic fields** — declare each input as a class attribute with `Field(...)` (required) or `Field(default, ...)` (optional). Pydantic validates inputs before `run()` is called, so you never receive the wrong type.
+- **Never return binary data or base64 blobs** — the return value lands in the agent's context window. Return paths, summaries, or structured text instead.
+- **Always handle errors gracefully** — return an error string rather than raising an exception. The agent can read the error message and decide what to do next.
+- **Include an `if __name__ == "__main__"` test block** — run the tool file directly (`python agent_name/tools/MyTool.py`) to verify it works before wiring it to an agent.
+- **Read API keys from environment variables** — never accept API keys as tool inputs. Use `os.getenv("MY_API_KEY")` inside `run()`.
+
+## Shared tools
+
+The `shared_tools/` directory contains tools that are available to every agent in the swarm without explicit per-agent registration. These are primarily Composio integration tools:
+
+<Accordion title="ManageConnections">
+  **File:** `shared_tools/ManageConnections.py`
+
+  Checks whether the required external services (Gmail, Slack, Notion, etc.) are authenticated and connected for the current Composio user. This should always be the first tool called before any Composio workflow — it verifies the connection exists and triggers the OAuth flow if it doesn't.
+
+  Fields: `toolkits` (list of toolkit names to check), `reinitiate_all` (force reconnection), `session_id` (link to a previous search session).
+</Accordion>
+
+<Accordion title="SearchTools">
+  **File:** `shared_tools/SearchTools.py`
+
+  Searches the Composio tool registry by intent or use-case description and returns candidate tools with their schemas. Use this when you know *what* you want to do (e.g., "send an email") but not the exact Composio tool name. Accepts a list of `queries`, each with at least a `use_case` key.
+</Accordion>
+
+<Accordion title="FindTools">
+  **File:** `shared_tools/FindTools.py`
+
+  Fetches tools from Composio by toolkit name or exact tool name. Use this when you already know the toolkit (`["GITHUB"]`) or the exact tool (`["GITHUB_CREATE_ISSUE"]`). Set `include_args=True` to get the full parameter schema — only do this immediately before executing, to avoid wasting context tokens on schemas you won't use.
+</Accordion>
+
+<Accordion title="ExecuteTool">
+  **File:** `shared_tools/ExecuteTool.py`
+
+  Executes a single Composio tool call and returns the result. Takes `tool_name` (exact Composio tool name), `arguments` (dict of parameters), and an optional `return_fields` list to extract only specific fields from the response and keep the context window clean.
+
+  Use this for simple single-action tasks. For complex multi-step workflows requiring data transformation between steps, use `IPythonInterpreter` with programmatic Composio calls instead.
+</Accordion>
+
+<Note>
+  Tools declared in `shared_tools/` are loaded into the agency-level shared context automatically when the `Agency` is constructed with `shared_instructions="shared_instructions.md"`. Individual agents do not need to import or declare them — they are available to every agent in the swarm without any additional registration.
+</Note>
+
+## Adding a tool to an existing agent
+
+<Steps>
+  <Step title="Create the tool file">
+    Create `agent_name/tools/NewTool.py` following the `BaseTool` pattern:
+
+    ```python
+    # agent_name/tools/NewTool.py
+    import os
+    from agency_swarm.tools import BaseTool
+    from pydantic import Field
+
+
+    class NewTool(BaseTool):
+        """
+        One-sentence description of what this tool does.
+        The agent uses this docstring to decide when to call the tool.
+        """
+
+        input_value: str = Field(
+            ...,
+            description="Description of this input for the agent.",
+        )
+
+        def run(self):
+            api_key = os.getenv("MY_API_KEY")
+            if not api_key:
+                return "Error: MY_API_KEY not found in environment"
+
+            try:
+                # Your tool logic here
+                result = f"Processed: {self.input_value}"
+                return result
+            except Exception as e:
+                return f"Error: {str(e)}"
+
+
+    if __name__ == "__main__":
+        tool = NewTool(input_value="test")
+        print(tool.run())
+    ```
+  </Step>
+
+  <Step title="Import in tools/__init__.py">
+    ```python
+    # agent_name/tools/__init__.py
+    from .NewTool import NewTool
+    ```
+  </Step>
+
+  <Step title="Add to the agent's tool list">
+    Open `agent_name/agent_name.py` and add `NewTool` to the `tools` list:
+
+    ```python
+    from agent_name.tools.NewTool import NewTool
+
+    def create_my_agent() -> Agent:
+        return Agent(
+            name="My Agent",
+            instructions="./instructions.md",
+            tools=[
+                ExistingTool,
+                NewTool,       # ← add here
+            ],
+            model=get_default_model(),
+        )
+    ```
+
+    Restart the server (or the TUI) after making this change — agents load their tool list at instantiation time.
+  </Step>
+</Steps>

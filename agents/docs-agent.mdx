@@ -1,0 +1,146 @@
+---
+title: "Docs Agent: Create and Edit Word Documents and PDFs"
+sidebarTitle: "Docs Agent"
+description: "The Docs Agent creates formatted Word documents (.docx) and PDFs from outlines or raw content, with full version history and HTML-to-DOCX conversion support."
+---
+
+The Docs Agent is OpenSwarm's document engineer. It creates professional Word documents (`.docx`) and PDFs from HTML or Markdown content, edits existing documents with surgical search-and-replace precision, converts between formats, and maintains automatic version history for every DOCX export. HTML is used as the canonical source format because it gives the agent complete control over fonts, colors, tables, spacing, and layout — all of which survive conversion to DOCX and PDF with high fidelity.
+
+## Tools
+
+<AccordionGroup>
+  <Accordion title="CreateDocument" icon="file-plus">
+    Creates a new document from HTML or Markdown content.
+
+    - **HTML workflow** → produces a `.source.html` file (the canonical source of truth). Always auto-converts to `.docx` immediately after creation.
+    - **Markdown workflow** → produces a `.md` file only. No `.docx` or `.pdf` is generated from Markdown.
+
+    **Key parameters:**
+    - `project_name` — folder name under `./mnt/` (e.g., `"quarterly_reports"`)
+    - `document_name` — filename without extension (e.g., `"q3_executive_summary"`)
+    - `content` — `{"type": "html", "value": "<!DOCTYPE html>..."}` or `{"type": "markdown", "value": "# Title\n..."}`
+
+    ```python
+    CreateDocument(
+        project_name="client_proposals",
+        document_name="acme_proposal",
+        content={"type": "html", "value": "<!DOCTYPE html><html>..."}
+    )
+    ```
+  </Accordion>
+  <Accordion title="ModifyDocument" icon="file-pen">
+    Edits an existing document's HTML source. Two modes:
+
+    **`search_and_replace` (preferred):** provide a list of `{old_content, new_content}` pairs. Each `old_content` is matched exactly — like StrReplace. Batch all changes into a single call. The file is not modified if any replacement fails.
+
+    ```python
+    ModifyDocument(
+        project_name="client_proposals",
+        document_name="acme_proposal",
+        operation="search_and_replace",
+        replacements=[
+            {"old_content": "#C8102E", "new_content": "#DA291C"},
+            {"old_content": "<h1>Draft Proposal</h1>", "new_content": "<h1>Final Proposal</h1>"}
+        ]
+    )
+    ```
+
+    **Line operations:** `replace`, `insert`, or `delete` by line number — for structural additions or deletions where no existing content can be matched.
+
+    <Note>
+    `ModifyDocument` only updates the HTML source. Call `ConvertDocument` to re-export to DOCX or PDF after editing.
+    </Note>
+  </Accordion>
+  <Accordion title="ViewDocument" icon="eye">
+    Reads the current HTML source of a document. Always run this before editing to see the exact content and line numbers.
+
+    Supports an optional `view_range` parameter (e.g., `[1, 50]`) to show only a portion of a large document.
+  </Accordion>
+  <Accordion title="ListDocuments" icon="list">
+    Lists all documents in a project folder. Shows:
+    - `.source.html` files (canonical source)
+    - All DOCX exports including versioned files (`report.docx`, `report_v2.docx`, `report_v3.docx`)
+    - Whether each DOCX has a companion snapshot for version restore
+    - Other converted formats (PDF, Markdown, TXT) and their sizes
+  </Accordion>
+  <Accordion title="ConvertDocument" icon="arrows-rotate">
+    Converts the `.source.html` to another format. Supported output formats:
+
+    | Format | Notes |
+    |---|---|
+    | `docx` | Word document. DOCX exports are **automatically versioned** — existing files are never overwritten; each export becomes `report.docx`, `report_v2.docx`, etc. A companion `.snapshot.html` is saved alongside every DOCX for version history. |
+    | `pdf` | High-quality PDF rendered with WeasyPrint. Unicode normalization is applied automatically. |
+    | `markdown` | Markdown, useful for documentation sites and wikis. |
+    | `txt` | Plain text — all formatting stripped. |
+  </Accordion>
+  <Accordion title="RestoreDocument" icon="clock-rotate-left">
+    Restores the working `.source.html` to the state it was in at a previous DOCX export.
+
+    Every `ConvertDocument` call that produces a `.docx` automatically saves a companion snapshot:
+
+    ```
+    report.docx
+    report.docx.snapshot.html      ← HTML source at time of that export
+    report_v2.docx
+    report_v2.docx.snapshot.html
+    ```
+
+    `RestoreDocument` reads the named snapshot and writes it back as the canonical `.source.html`, ready for further edits or re-conversion. Use `ListDocuments` to see all available versions.
+
+    ```python
+    RestoreDocument(
+        project_name="client_proposals",
+        docx_filename="acme_proposal_v2.docx"
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Supported formats
+
+| Format | Read | Write | Notes |
+|---|---|---|---|
+| HTML | ✅ (source input) | ✅ (`.source.html`) | Canonical source format; full CSS styling control |
+| DOCX (Word) | — | ✅ | Auto-versioned; companion snapshot saved on every export |
+| PDF | — | ✅ | High-quality via WeasyPrint; unicode normalization applied |
+| Markdown | ✅ (source input) | ✅ (`.md`) | Markdown workflow does not produce DOCX or PDF |
+| TXT | — | ✅ | Plain text, all formatting stripped |
+
+## Output files
+
+Every file the Docs Agent creates or exports is saved under `./mnt/<project_name>/documents/` and the full path is included in the agent's response. Use the path to open the file, share it, or hand it off to another agent.
+
+```
+./mnt/client_proposals/documents/acme_proposal.source.html
+./mnt/client_proposals/documents/acme_proposal.docx
+./mnt/client_proposals/documents/acme_proposal.docx.snapshot.html
+./mnt/client_proposals/documents/acme_proposal.pdf
+```
+
+If you provide an output path outside the project folder, the agent creates the file in the project folder first, then copies it to your specified location with `CopyFile`.
+
+<Tip>
+`RestoreDocument` gives you full version history. If you export a DOCX, keep editing, and then want to roll back to the version from two exports ago, just call `RestoreDocument` with the earlier DOCX filename. The snapshot is always there.
+</Tip>
+
+## Example prompts
+
+```text
+Write an executive summary for my Series A pitch. Include our traction metrics and a competitive landscape section.
+```
+
+```text
+Convert this HTML file to a Word document. Keep the formatting as close as possible.
+```
+
+```text
+Create a research report with these findings and export it as a PDF ready for sharing.
+```
+
+```text
+I need a one-page onboarding SOP for a remote operations coordinator. Deliver it as Markdown.
+```
+
+```text
+Edit the proposal I just created — change the accent color from #C8102E to #DA291C and update the title to "Final Proposal".
+```

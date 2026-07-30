@@ -1,0 +1,96 @@
+---
+title: "Slides Agent: HTML Decks and PPTX Export"
+sidebarTitle: "Slides Agent"
+description: "The Slides Agent generates fully designed HTML slide decks and exports them to PPTX. Includes image search, AI image generation, theme management, and slide-level QA."
+---
+
+The Slides Agent is a professional presentation designer that converts topics, documents, or raw content into polished, visual HTML-based slide decks — then exports them to fully editable `.pptx` files. Each slide is authored as standalone HTML with shared theme CSS, so the pipeline preserves Google Fonts, CSS gradients, inline SVGs, and custom layouts with pixel-perfect fidelity when rendered to PowerPoint via Playwright and `dom-to-pptx`. The agent always clarifies scope before generating, plans the full deck narrative, researches content in parallel, and only starts building slides once all assets and facts are gathered.
+
+## Tools
+
+<CardGroup cols={2}>
+  <Card title="InsertNewSlides" icon="plus">
+    Inserts blank slide placeholders at a specified position in the deck. Accepts a task brief and page count, then returns an outline and execution plan with template keys. Always run this before `ModifySlide` when adding new slides.
+  </Card>
+  <Card title="ModifySlide" icon="pen-to-square">
+    Generates or edits a slide's HTML by dispatching a fully isolated sub-agent with the task brief as its only context. Automatically returns a screenshot after every modification so the agent can inspect for overflow, broken layouts, or missing images.
+  </Card>
+  <Card title="ManageTheme" icon="palette">
+    Creates or overwrites the shared `_theme.css` file for a project. Stores CSS variables for the color palette, typography, spacing, and reusable layout classes (cards, labels, glass panels). All slides link this file to stay visually consistent.
+  </Card>
+  <Card title="ReadSlide" icon="file-code">
+    Returns the raw HTML source of a named slide file. Use this to inspect the current design or content of a slide before making targeted edits, without triggering a full re-render.
+  </Card>
+  <Card title="SlideScreenshot" icon="camera">
+    Renders a single HTML slide to a JPEG image attachment using Playwright at 1280×720. Use this to visually inspect slides that weren't just modified (ModifySlide screenshots automatically — this is for consistency checks on other slides).
+  </Card>
+  <Card title="CheckSlide" icon="magnifying-glass">
+    Renders a single HTML or PPTX slide to an image and returns it as a file attachment. Useful for inspecting rendered output at any point, including PPTX slide previews using LibreOffice.
+  </Card>
+  <Card title="CheckSlideCanvasOverflow" icon="border-none">
+    Detects content that overflows the slide canvas by adding grey padding around each slide, rendering to image, and inspecting the padding margins for non-grey pixels. Returns the failing slide indices and debug images showing the overflow. Requires LibreOffice.
+  </Card>
+  <Card title="BuildPptxFromHtmlSlides" icon="file-powerpoint">
+    Converts an ordered list of HTML slides into a fully editable `.pptx` file. Uses Playwright to measure every element's exact computed position and style, then maps them to native PPTX shapes. Custom fonts are auto-embedded. Output is auto-versioned: `my_deck.pptx`, `my_deck_v2.pptx`, etc.
+  </Card>
+  <Card title="RestoreSnapshot" icon="clock-rotate-left">
+    Rolls back the working slides to any previous export. Reads HTML from the snapshot directory created alongside each `.pptx` export, restores `slide_01.html`, `slide_02.html`, etc., and re-extracts the theme CSS.
+  </Card>
+  <Card title="CreatePptxThumbnailGrid" icon="table-cells">
+    Converts all slides in a PPTX to images and arranges them in a grid layout (up to 5 columns by default). Useful for a fast visual overview of an entire deck. Automatically creates multiple grid files for large presentations. Requires LibreOffice and Poppler.
+  </Card>
+  <Card title="ImageSearch" icon="magnifying-glass-dollar">
+    Searches for stock images across Unsplash, Pexels, and Pixabay using a text query. Returns image URLs, descriptions, dimensions, and photographer credits. Use this for real-world photos, textures, and backgrounds — not for brand-specific logos or icons.
+  </Card>
+  <Card title="DownloadImage" icon="cloud-arrow-down">
+    Downloads an image from a URL into the project's `assets/` folder. Validates that the response is a real image (not an HTML error page). Use the downloaded path as `./assets/{filename}` in slide HTML — the PPTX exporter auto-embeds it as base64.
+  </Card>
+  <Card title="GenerateImage" icon="wand-magic-sparkles">
+    Generates AI images using Google Gemini. Two modes: `diagram` (uses `gemini-3-pro-image-preview`, optimized for flowcharts, org charts, pyramids with text) and `concept_art` (uses `gemini-2.5-flash-image`, faster generation for illustrations and atmospheric images). Saves to the project's `assets/` folder.
+  </Card>
+  <Card title="EnsureRasterImage" icon="image">
+    Converts vector and container formats (SVG, EMF, WMF, HEIC, PDF, EPS) to raster PNG using Inkscape, Ghostscript, or ImageMagick. Already-raster files are returned as-is. Use this before embedding any non-raster asset in a slide.
+  </Card>
+  <Card title="ExtractPptxTextInventory" icon="list">
+    Extracts all text shapes from a PPTX file into a structured JSON file, organized by slide. Includes position, dimensions, placeholder types, paragraph formatting, and overflow/overlap issue detection. Use before batch text editing.
+  </Card>
+  <Card title="ApplyPptxTextReplacements" icon="arrows-rotate">
+    Applies batch text replacements to an existing PPTX file from a JSON file following the inventory structure. Preserves all existing formatting. Validates that referenced shapes exist and that overflow does not worsen after replacements.
+  </Card>
+  <Card title="RearrangePptxSlidesFromTemplate" icon="shuffle">
+    Reorders the slides in a PPTX file according to a provided sequence of slide indices. Use this to restructure an existing deck without rebuilding from HTML.
+  </Card>
+  <Card title="CreateImageMontage" icon="border-all">
+    Creates a labeled grid montage from a collection of images (supplied as a list of paths or a directory). Configurable column count and cell width. Non-raster formats are auto-converted before inclusion. Useful for reviewing slide image assets or creating visual indexes.
+  </Card>
+</CardGroup>
+
+## Image sources
+
+The `ImageSearch` tool queries up to three stock photo providers. Set whichever keys you have — the agent skips any provider whose key is missing and proceeds with the rest.
+
+| Provider | Environment variable |
+|----------|---------------------|
+| Pexels | `PEXELS_API_KEY` |
+| Pixabay | `PIXABAY_API_KEY` |
+| Unsplash | `UNSPLASH_ACCESS_KEY` |
+
+The `GenerateImage` tool uses Google Gemini for AI image generation and requires `GOOGLE_API_KEY`.
+
+## Example prompts
+
+- "Create a 10-slide investor pitch for OpenSwarm"
+- "Add a title slide and agenda to this deck"
+- "Change all slides to use a dark theme with the company brand colors"
+- "Turn this PDF document into a professional slide deck"
+- "Polish the layout — the content slides look too text-heavy"
+
+## Notes and requirements
+
+<Note>
+  Anthropic's Claude produces significantly better slide HTML output than other providers. For the best results, set your `DEFAULT_MODEL` to a Claude Sonnet model (e.g. `anthropic/claude-sonnet-4-6`). The HTML writer sub-agent inside `InsertNewSlides` and `ModifySlide` also defaults to Claude when available.
+</Note>
+
+<Tip>
+  LibreOffice (`soffice`) must be installed for thumbnail grid generation (`CreatePptxThumbnailGrid`), canvas overflow checks (`CheckSlideCanvasOverflow`), and PPTX slide inspection via `CheckSlide`. On macOS, the agent will attempt to install it via `brew` if it is not present; on Linux, via `apt`. Poppler (`pdftoppm`) is also required for PDF-to-image conversion steps in those tools.
+</Tip>

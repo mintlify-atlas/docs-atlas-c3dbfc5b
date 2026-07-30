@@ -1,0 +1,151 @@
+---
+title: "Automated Website Deploy Pipeline with GitHub Actions"
+sidebarTitle: "Website Pipeline"
+description: "OpenSwarm auto-deploys the unklefunk.music website on every push to main. The GitHub Actions workflow SCPs updated files to Hostinger and the site goes live instantly."
+---
+
+OpenSwarm ships with a fully automated website deploy pipeline. Any agent (or developer) that writes updated files to the `website/` directory and pushes to `main` will trigger a GitHub Actions workflow that SCPs those files directly to the Hostinger server. The site at [unklefunk.music](https://unklefunk.music) reflects the changes within seconds — no manual FTP, no separate deployment step.
+
+## How it works
+
+<Steps>
+  <Step title="An agent writes updated files">
+    Agents with file-writing capability (such as the Virtual Assistant) write HTML, CSS, JS, or asset files to the `website/` directory. The Virtual Assistant's `WriteFile` and `EditFile` tools write to absolute paths, targeting `website/index.html` and related files.
+  </Step>
+
+  <Step title="A git push to main triggers the workflow">
+    When those file changes are committed and pushed to the `main` branch, the `deploy-hostinger.yml` workflow is triggered. The `paths: ["website/**"]` filter ensures the workflow only runs when files inside `website/` have changed — a push that only modifies Python agent code will not trigger a deploy.
+  </Step>
+
+  <Step title="GitHub Actions SCPs files to Hostinger">
+    The workflow checks out the repository, runs an SSH command to prepare the web root (creating the directory if needed and removing any conflicting Hostinger placeholder files), then uses `appleboy/scp-action` to upload the site files directly to `~/domains/unklefunk.music/public_html/` on the Hostinger server.
+  </Step>
+
+  <Step title="The site goes live">
+    After the upload, a final SSH step sets correct file permissions (`644` for files, `755` for directories) and verifies the deploy by checking the live HTTP status and comparing the MD5 hash of `style.css` between the repo and the server. A successful deploy completes in under 30 seconds from push.
+  </Step>
+</Steps>
+
+## Files deployed
+
+On every triggered run, the workflow uploads these files and directories from `website/` to the server:
+
+| File / Directory | Purpose |
+|---|---|
+| `index.html` | Main single-page site |
+| `design-variants.html` | Internal design comps (unlinked from live nav) |
+| `style.css` | AMOLED black / sky-blue "Neon Nights" theme |
+| `main.js` | Tally badge, embed facades, scroll reveal |
+| `wip.js` | Per-track WaveSurfer.js waveform player + Supabase Q&A widget |
+| `.htaccess` | DirectoryIndex, gzip compression, caching headers |
+| `favicon.svg` | Site favicon |
+| `robots.txt` | Search engine crawl directives |
+| `fonts/` | Web font assets |
+| `assets/` | Photography, audio clips, and the Reference Finder static build |
+
+The `strip_components: 1` option in the SCP step strips the leading `website/` path segment, so `website/index.html` lands at `public_html/index.html` on the server.
+
+## GitHub Secrets required
+
+The workflow authenticates to the Hostinger server using SSH credentials stored as GitHub repository secrets. Go to **Settings → Secrets and variables → Actions** in your GitHub repo and add:
+
+| Secret name | Value |
+|---|---|
+| `HOSTINGER_SSH_USER` | Your Hostinger SSH username |
+| `HOSTINGER_SSH_PASS` | Your Hostinger SSH password |
+
+The server IP (`195.179.239.223`) and port (`65002`) are hard-coded in the workflow file. If you fork OpenSwarm and deploy to a different server, update those values directly in `.github/workflows/deploy-hostinger.yml`.
+
+## Workflow trigger
+
+```yaml
+on:
+  push:
+    branches: ["main"]
+    paths: ["website/**"]
+  workflow_dispatch:
+```
+
+The workflow fires on two conditions:
+- A push to `main` that includes at least one changed file under `website/`
+- A manual trigger via the **Run workflow** button in the GitHub Actions UI (`workflow_dispatch`)
+
+Changes to Python agent code, `swarm.py`, Docker config, or any other non-`website/` path do not trigger the pipeline.
+
+## Full workflow
+
+```yaml
+name: Deploy to unklefunk.music
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["website/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare web root
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: 195.179.239.223
+          port: 65002
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          script: |
+            mkdir -p ~/domains/unklefunk.music/public_html
+            rm -f ~/domains/unklefunk.music/public_html/default.php \
+                  ~/domains/unklefunk.music/public_html/index.php
+
+      - name: Upload files
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: 195.179.239.223
+          port: 65002
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          source: "website/index.html,website/design-variants.html,website/style.css,\
+                   website/main.js,website/wip.js,website/.htaccess,website/favicon.svg,\
+                   website/robots.txt,website/fonts,website/assets"
+          target: "~/domains/unklefunk.music/public_html/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Verify deploy
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: 195.179.239.223
+          port: 65002
+          username: ${{ secrets.HOSTINGER_SSH_USER }}
+          password: ${{ secrets.HOSTINGER_SSH_PASS }}
+          script: |
+            find ~/domains/unklefunk.music/public_html -type f -exec chmod 644 {} \;
+            find ~/domains/unklefunk.music/public_html -type d -exec chmod 755 {} \;
+            find ~/domains/unklefunk.music/public_html -maxdepth 2
+
+      - name: Check live site
+        run: |
+          sleep 5
+          HTTP=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 15 https://unklefunk.music/)
+          echo "HTTP status: $HTTP"
+```
+
+## Adapting for other hosts
+
+The deploy step is a single `appleboy/scp-action` call — swap it out to target any other hosting platform:
+
+- **AWS S3 / CloudFront** — replace the SCP step with `aws s3 sync website/ s3://your-bucket/` and add a CloudFront invalidation step
+- **Netlify** — use `netlify/actions/cli@master` with `netlify deploy --prod --dir=website`
+- **Vercel** — use `amondnet/vercel-action@v25` with the `working-directory` set to `website`
+- **FTP hosts** — use `SamKirkland/FTP-Deploy-Action@4.3.4` with your FTP credentials as secrets
+
+The workflow trigger (`paths: ["website/**"]`) and checkout step remain the same regardless of the deploy target. Only the upload/deploy step needs to change.
+
+<Note>
+  The Hostinger web root for `unklefunk.music` is **`~/domains/unklefunk.music/public_html/`** — not `~/public_html/`. Hostinger creates a per-domain folder under `~/domains/` and serves from there. Writing files to `~/public_html/` will not update the live site. This path is already correct in the workflow file, but keep it in mind if you ever edit the `target:` value manually.
+</Note>

@@ -1,0 +1,211 @@
+---
+title: "Ableton Extensions SDK: Build Live Integrations with TypeScript"
+sidebarTitle: "Ableton Extensions"
+description: "OpenSwarm includes two ready-to-use Ableton Live Extensions and the Dream Agent that generates new ones nightly — built on Ableton's TypeScript Extensions SDK."
+---
+
+Ableton Live 12.4.5 introduced an Extensions SDK that lets you write TypeScript programs that create tracks, write MIDI notes, set tempo, register context-menu commands, and open custom HTML dialogs — all directly inside a running Live session. OpenSwarm ships two production-ready extensions (`unkle-funk-song-sketch` and `chicago-grid-setup`) and a Dream Agent that generates a new song sketch extension every night, compiling fresh TypeScript groove templates tailored to Unkle Funk's sound. Extensions are right-click–first: you invoke them from Live's context menu on a track header or arrangement selection. No Max for Live, no Python Remote Scripts — pure TypeScript running in Node.js.
+
+## Built extensions
+
+Two extensions live under `ableton_extensions/built/`:
+
+<CardGroup cols={2}>
+  <Card title="unkle-funk-song-sketch" icon="wand-magic-sparkles">
+    The nightly song sketch system. Right-click any MIDI or Audio track → **"Load Sketch: [Name] (BPM, Key)"** → six MIDI tracks appear in your arrangement with a fully-written, humanized groove ready to build from.
+
+    Each sketch contains a **KICK** (Chicago syncopation), **SNARE** (2-and-4 with ghost notes), **HATS** (off-beat 8th/16th with open-hat breathe), **PERCS** (rolling conga/rimshot texture), **BASS** (C minor root-walking line), and **CHORDS** (sparse Cm stabs on beat 2). All notes are humanized — subtle timing drift (±8ms) and velocity variation (±6) give the grid an organic, analog feel.
+
+    New sketches are added nightly by the Dream Agent via `scripts/nightly_dream.py`. Each sketch is a named TypeScript module (e.g. "Slow Burn on State Street", 123 BPM, C Minor) imported into the extension's context menu.
+  </Card>
+  <Card title="chicago-grid-setup" icon="grid">
+    Glenn's default production scaffold in one right-click. Right-click any track → **"Chicago Grid Setup (123 BPM)"** → six MIDI tracks appear, tempo is set to 123 BPM, each track is named, color-coded, and populated with empty 8-bar clips ready to program.
+
+    | Track | Color | Purpose |
+    |---|---|---|
+    | KICK | Red | Kick drum trigger |
+    | SNARE | Orange | Snare / clap |
+    | HATS | Gold | Hi-hat patterns |
+    | PERCS | Green | Congas, shakers, rimshots |
+    | BASS | Blue | Bass line |
+    | CHORDS | Purple | Chord stabs |
+
+    Load your samples by dragging a kick one-shot onto the KICK track's Simpler, then start programming. No fussing with track setup — the scaffold matches the arrangement structure every sketch expects.
+  </Card>
+</CardGroup>
+
+## Extensions SDK basics
+
+Every extension exports a single `activate` function. The SDK is initialized with your extension version, and all mutations to Live's session must be wrapped in `api.withinTransaction()` for undo support. Here's the core pattern used by both built extensions and every nightly sketch:
+
+```typescript
+import { initialize, MidiClip, type ActivationContext, type NoteDescription } from "@ableton-extensions/sdk";
+
+export async function activate(activation: ActivationContext) {
+  const api = initialize(activation, "1.0.0");
+  const song = api.application.song;
+  
+  // Create tracks inside a transaction
+  const tracks = await api.withinTransaction(() => Promise.all([
+    song.createMidiTrack(),
+  ]));
+  
+  // Set properties
+  api.withinTransaction(() => {
+    tracks[0].name = "KICK";
+    tracks[0].color = 0xC8003C;
+    song.tempo = 123;
+  });
+  
+  // Create arrangement clips
+  const clips = await api.withinTransaction(() => Promise.all(
+    tracks.map(t => t.createMidiClip(0, 32))
+  ));
+  
+  // Write MIDI notes
+  api.withinTransaction(() => {
+    if (clips[0] instanceof MidiClip) {
+      clips[0].notes = [
+        { pitch: 48, startTime: 0, duration: 0.3, velocity: 105 },
+      ];
+    }
+  });
+}
+```
+
+## Key SDK concepts
+
+Understanding these four concepts covers the vast majority of what the built extensions do:
+
+<CardGroup cols={2}>
+  <Card title="Note timing" icon="clock">
+    `startTime` is in **beats from the clip start** — not bars, not milliseconds. One beat equals one quarter note. One bar equals 4 beats. A 32-beat clip is 8 bars. To place a note on beat 3 of bar 2: `startTime: (1 * 4) + 2 = 6`.
+
+    ```
+    1 bar    =  4 beats
+    8 bars   = 32 beats
+    16 bars  = 64 beats
+
+    Quarter note  = 1 beat
+    8th note      = 0.5 beats
+    16th note     = 0.25 beats
+    8th triplet   = 0.333 beats
+    ```
+  </Card>
+  <Card title="Pitch" icon="music">
+    Separate drum tracks use **C3 = 48** as the trigger note (Simpler default). Bass and chord tracks use actual MIDI pitches.
+
+    ```
+    C4 = 60 (middle C)
+    C3 = 48, C2 = 36, C1 = 24
+
+    C minor scale (C3):
+    C=48, D=50, Eb=51, F=53, G=55, Ab=56, Bb=58
+    ```
+  </Card>
+  <Card title="Colors" icon="palette">
+    Track colors are integers. The built extensions use a consistent color system that matches the Chicago Grid scaffold:
+
+    ```typescript
+    RED    = 0xC8003C  // KICK
+    ORANGE = 0xFF4E00  // SNARE
+    AMBER  = 0xC5A400  // HATS
+    GREEN  = 0x009A39  // PERCS
+    BLUE   = 0x0047FF  // BASS
+    PURPLE = 0x9100FF  // CHORDS
+    ```
+  </Card>
+  <Card title="Transactions" icon="shield">
+    All mutations that should be undoable together must be wrapped in `api.withinTransaction()`. Async transactions (track/clip creation) use `await`. Sync transactions (setting properties, writing notes) do not.
+
+    ```typescript
+    // Async: operations that return new objects
+    const tracks = await api.withinTransaction(() =>
+      Promise.all([song.createMidiTrack()])
+    );
+
+    // Sync: setting properties on existing objects
+    api.withinTransaction(() => {
+      track.name = "KICK";
+      track.color = 0xC8003C;
+    });
+    ```
+  </Card>
+</CardGroup>
+
+### Context menu registration
+
+Extensions surface their commands through Live's right-click context menu. Register a command and attach it to a context type:
+
+```typescript
+api.commands.registerCommand("unkle-funk.loadSketch", async (args) => {
+  // command implementation — creates tracks, writes notes
+});
+
+api.ui.registerContextMenuAction(
+  "MidiTrack",                  // right-click a MIDI track header to see this item
+  "Load Sketch: Slow Burn (123 BPM, C Minor)",
+  "unkle-funk.loadSketch"
+);
+```
+
+| Context type | When shown |
+|---|---|
+| `"MidiTrack"` | Right-click a MIDI track header |
+| `"AudioTrack"` | Right-click an audio track header |
+| `"MidiTrack.ArrangementSelection"` | Time selection on a MIDI track in arrangement |
+| `"Song"` | Right-click in empty arrangement area |
+
+## Generating extensions with the Dream Agent
+
+The Ableton Dream Agent can scaffold new Extensions using the `DreamSongSketch` tool. Every night at 5am it generates a new sketch — a named TypeScript module with kick, snare, hats, percs, bass, and chord patterns personalized to Unkle Funk's current taste fingerprint. Generated sketches are added to `src/sketches/` inside the `unkle-funk-song-sketch` extension, imported into `src/index.ts`, and committed to the repo.
+
+To request a new sketch manually or rate a previous one, talk to the Dream Agent directly:
+
+> "Tonight's sketch should feel like 4am Detroit — sparse kick, minimal percs, long bass note per bar, 122 BPM."
+
+> "Rate sketch 'Slow Burn on State Street' 5/5, loved the rolling congas."
+
+For full Dream Agent usage — feedback loop, name vocabulary, sketch variation catalog — see [Ableton Dream Agent](/agents/ableton-dream).
+
+<Note>
+  Extensions also have unrestricted Node.js network access. The Dream Agent can generate patterns on-demand by calling a local backend at runtime, rather than relying solely on pre-generated nightly files. The pattern is a `fetch()` call to `http://localhost:8080/generate-sketch` from inside `activate()`. See `ableton_extensions/sdk_context.md` in the repo for the full HTTP API access reference and community-confirmed patterns (WASM support, HTML dialog windows, Session View clip read/write).
+</Note>
+
+## Requirements
+
+<CardGroup cols={2}>
+  <Card title="Ableton Live" icon="music">
+    **Suite 12.4.5 or later** (beta). Extensions require Suite — they are not available on Standard, Intro, or Lite. Open Preferences → Extensions to manage installed extensions.
+  </Card>
+  <Card title="Node.js" icon="node">
+    **Node.js 22.11.0 or later**. The SDK runs in a full Node.js environment — network access, file system access, and WASM are all available.
+  </Card>
+</CardGroup>
+
+### Installation for any built extension
+
+```bash
+# 1. Get the SDK vendor tarball from Ableton's beta download page
+#    Place it at: vendor/ableton-extensions-sdk-1.0.0.tgz
+
+# 2. Install dependencies and build
+npm install
+npm run build
+
+# 3. In Ableton Live: Preferences → Extensions → Add Extension
+#    Navigate to the extension folder (e.g. ableton_extensions/built/chicago-grid-setup)
+
+# 4. Right-click any track header in Live to access the extension's context menu items
+```
+
+To package an extension for distribution as an `.ablx` file:
+
+```bash
+npm run build    # compile TypeScript + bundle
+npm run package  # → produces extension-name.ablx
+```
+
+<Note>
+  The full SDK API reference — including the complete `Song`, `Track`, and `Clip` object APIs, `NoteDescription` interface, `manifest.json` structure, `package.json` structure, GM drum map, pitch reference table, and all known beta limitations — is documented in `ableton_extensions/sdk_context.md` in the repo.
+</Note>

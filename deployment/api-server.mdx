@@ -1,0 +1,104 @@
+---
+title: "Run OpenSwarm as a FastAPI Server"
+sidebarTitle: "API Server"
+description: "OpenSwarm ships a FastAPI server that exposes the agency as an HTTP API on port 8080. Start it with python server.py and send requests to the open-swarm agency endpoint."
+---
+
+OpenSwarm includes a production-ready HTTP API mode powered by Agency Swarm's `run_fastapi` integration. Instead of the interactive terminal UI, `python server.py` starts a FastAPI application that accepts JSON requests, routes them through the multi-agent pipeline, and streams responses back over HTTP. This is the default mode when running in Docker and the right choice for any headless deployment — CI pipelines, hosted servers, or integrations with other services.
+
+## Starting the server
+
+```bash
+python server.py
+```
+
+The server binds to `localhost:8080` and exposes the OpenAPI documentation at `http://localhost:8080/docs`. All agency endpoints are mounted under their configured name (e.g., `/open-swarm/`).
+
+## server.py
+
+```python
+# FastAPI entry point — run with: python server.py
+
+import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+from swarm import create_agency
+from agency_swarm.integrations.fastapi import run_fastapi
+
+
+if __name__ == "__main__":
+    run_fastapi(
+        agencies={
+            # you must export your create agency function here
+            "open-swarm": create_agency,
+        },
+        port=8080,
+        enable_logging=True,
+        allowed_local_file_dirs=[
+            "./uploads",
+        ],
+    )
+```
+
+`run_fastapi` accepts a dict of **agency factories** rather than already-instantiated agencies. Each factory is a callable that returns a configured `Agency` object — this lets the server create a fresh agency instance per request, which keeps thread state isolated. `load_dotenv()` is called before the import chain so all API keys are in the environment before any agent initializes.
+
+## Agency routing
+
+The `agencies` dict is a simple name-to-factory map. The key becomes the URL prefix for that agency's endpoints:
+
+| Key | Factory | Endpoint prefix |
+|---|---|---|
+| `"open-swarm"` | `create_agency` | `/open-swarm/` |
+
+You can register as many agencies as you need in the same dict. Each gets its own URL prefix and its own independent agent graph. Agents from one agency never share threads or context with another.
+
+The `create_agency` factory (defined in `swarm.py`) instantiates all ten agents, defines `SendMessage` and `Handoff` communication flows, loads `shared_instructions.md`, and returns the configured `Agency` object.
+
+## Configuration
+
+| Parameter | Value | Description |
+|---|---|---|
+| `port` | `8080` | TCP port the server listens on |
+| `enable_logging` | `True` | Streams agent reasoning steps to stdout at INFO level |
+| `allowed_local_file_dirs` | `["./uploads"]` | Directories the server may read local files from when processing file-based requests; the `uploads/` folder is the designated drop point for attachments |
+
+The `uploads/` directory is also mapped as a Docker volume (`./uploads:/app/uploads`) so files written there persist across container restarts and are accessible from the host.
+
+## Adding more agencies
+
+To expose a second agency on the same server — for example a stripped-down music-only swarm — add a second factory to the `agencies` dict:
+
+```python
+from swarm import create_agency
+from music_swarm import create_music_agency
+from agency_swarm.integrations.fastapi import run_fastapi
+
+if __name__ == "__main__":
+    run_fastapi(
+        agencies={
+            "open-swarm": create_agency,
+            "music-swarm": create_music_agency,
+        },
+        port=8080,
+        enable_logging=True,
+        allowed_local_file_dirs=["./uploads"],
+    )
+```
+
+The music swarm would then be reachable at `/music-swarm/` while the original remains at `/open-swarm/`. Both share the same process and the same `.env` configuration but maintain completely separate agent threads and state.
+
+<Note>
+  Running `python server.py` directly requires all Python dependencies to be installed. Install them with:
+
+  ```bash
+  pip install -r requirements.txt
+  npm install    # installs Node.js packages and applies patches via patch-package
+  ```
+
+  If you used the onboarding wizard (`python run.py`) or the Docker path, these dependencies are already satisfied. The npm install step applies the `patches/` directory via `patch-package`, which fixes upstream bugs in the Agency Swarm framework — it must run before the server starts.
+</Note>

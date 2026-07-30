@@ -1,0 +1,167 @@
+---
+title: "Deploy OpenSwarm with Docker and Docker Compose"
+sidebarTitle: "Docker"
+description: "Run OpenSwarm in a container using Docker Compose. Copy .env.example, add your API keys, and start the full multi-agent stack with a single command."
+---
+
+Docker is the fastest way to run OpenSwarm in a production-like environment. The included `docker-compose.yml` builds the image, forwards port `8080`, and mounts the `mnt/` and `uploads/` directories as volumes so data persists across container restarts. The container starts `python server.py` automatically, so the FastAPI endpoint is live the moment the stack comes up.
+
+## Prerequisites
+
+- **Docker Engine ≥ 24** and **Docker Compose v2** installed on your host
+- API keys for at least one LLM provider (OpenAI, Anthropic, or Google Gemini)
+- Optional but recommended: a `COMPOSIO_API_KEY` and `COMPOSIO_USER_ID` if you want the 10,000+ external integrations
+
+## Deployment
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/UnkleFunk/HouseMusicSwarm-.git openswarm
+    cd openswarm
+    ```
+  </Step>
+
+  <Step title="Create your .env file">
+    Copy the example file and fill in your keys:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    At minimum, set one LLM provider key and `DEFAULT_MODEL`:
+
+    ```bash
+    # .env — minimum viable config
+    OPENAI_API_KEY=sk-...
+
+    # Override the default model (defaults to gpt-5.2 if unset)
+    DEFAULT_MODEL=gpt-5.2
+
+    # Optional: unlock 10,000+ integrations via Composio
+    COMPOSIO_API_KEY=
+    COMPOSIO_USER_ID=
+    ```
+
+    The full set of available variables is described in the [Environment variables](#environment-variables) table below.
+  </Step>
+
+  <Step title="Build and start the stack">
+    ```bash
+    docker-compose up --build
+    ```
+
+    Docker will build the image (installing Python deps, Node.js 20, LibreOffice, Playwright Chromium, and Poppler), then start the container. The first build takes a few minutes; subsequent starts are fast because layers are cached.
+
+    To run in detached mode:
+
+    ```bash
+    docker-compose up --build -d
+    ```
+  </Step>
+
+  <Step title="Verify the service is running">
+    Once the container is up, the FastAPI server is available at `http://localhost:8080`.
+
+    Check the health of the `open-swarm` agency endpoint:
+
+    ```bash
+    curl http://localhost:8080/open-swarm/docs
+    ```
+
+    You should see the auto-generated OpenAPI documentation page. If you get a connection error, run `docker-compose logs openswarm` to inspect startup output.
+  </Step>
+</Steps>
+
+## docker-compose.yml
+
+```yaml
+services:
+  openswarm:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./mnt:/app/mnt
+      - ./uploads:/app/uploads
+```
+
+The `env_file` directive means every variable in your `.env` is injected into the container automatically — no extra `environment:` block needed. The two volume mounts keep generated files (in `mnt/`) and uploaded assets (in `uploads/`) on the host filesystem so they survive container replacements.
+
+## Dockerfile highlights
+
+The `Dockerfile` is based on `python:3.13-slim` and installs everything the full agent stack needs:
+
+```dockerfile
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+ENV PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+WORKDIR /app
+
+# System dependencies: Node.js, LibreOffice, Poppler, Playwright Chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git curl libreoffice-impress poppler-utils \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+    libgbm1 libasound2 libpango-1.0-0 libpangoft2-1.0-0 libcairo2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20 LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python deps (cached layer)
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Node deps + patches
+COPY package.json package-lock.json* ./
+COPY patches/ patches/
+RUN npm ci || npm install
+
+# Output directories
+RUN mkdir -p /app/activity-logs /app/mnt \
+    && chmod -R a+rwx /app/activity-logs /app/mnt
+
+COPY . .
+
+CMD python -u server.py
+```
+
+Key points:
+- Python deps are copied and installed **before** the rest of the source, so they are layer-cached and don't reinstall on every code change.
+- LibreOffice (`libreoffice-impress`) enables PPTX → PDF conversion used by the Slides Agent.
+- Poppler (`poppler-utils`) provides `pdftoppm` for the PDF thumbnail pipeline.
+- Playwright Chromium is installed via the system dependency block; browsers are fetched separately at runtime.
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | One of the three | Primary LLM provider — OpenAI |
+| `ANTHROPIC_API_KEY` | One of the three | Primary LLM provider — Anthropic Claude |
+| `GOOGLE_API_KEY` | One of the three | Primary LLM provider — Google Gemini; also used for image/video generation |
+| `DEFAULT_MODEL` | Recommended | Model string for all agents. Defaults to `gpt-5.2` if unset. Use `litellm/claude-sonnet-4-6` for Anthropic or `litellm/gemini/gemini-3-flash` for Google. |
+| `COMPOSIO_API_KEY` | Optional | Unlocks 10,000+ external integrations (Gmail, Slack, HubSpot, etc.) |
+| `COMPOSIO_USER_ID` | Optional | Ties Composio to your account's connected apps |
+| `SEARCH_API_KEY` | Optional | Enables web search, Scholar search, and product search. Get at [searchapi.io](https://www.searchapi.io) |
+| `PEXELS_API_KEY` | Optional | Stock photo search for the Slides Agent |
+| `PIXABAY_API_KEY` | Optional | Additional stock photo source for the Slides Agent |
+| `UNSPLASH_ACCESS_KEY` | Optional | Additional stock photo source for the Slides Agent |
+| `FAL_KEY` | Optional | fal.ai — Seedance video generation and background removal |
+
+<Note>
+  The TUI (`agency.tui()`) is not available in Docker mode. The container always starts `python server.py`, which runs the FastAPI HTTP server. To interact with the agency, send requests to the API endpoint at `http://localhost:8080` — see the [API Server](/deployment/api-server) page for endpoint details.
+</Note>
+
+<Tip>
+  Set `DEFAULT_MODEL` in your `.env` before running `docker-compose up`. If it is left empty, every agent defaults to `gpt-5.2`. For Anthropic, use `litellm/claude-sonnet-4-6`; for Google, use `litellm/gemini/gemini-3-flash`. The `config.py` helper routes the string through `LitellmModel` automatically when it detects a slash in the model name.
+</Tip>

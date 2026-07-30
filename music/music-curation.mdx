@@ -1,0 +1,175 @@
+---
+title: "Music Curation Engine: Taste-Scored Track Discovery"
+sidebarTitle: "Music Curation"
+description: "OpenSwarm's music curation pipeline discovers new tracks from Beatport and Traxsource, scores them against a taste profile, and publishes the results to your website automatically."
+---
+
+The music curation engine exists to solve a real problem for working DJs: the raw track-to-listen ratio on Beatport or Traxsource is roughly 50:1. For every track worth playing, you audition dozens that aren't even close. OpenSwarm's curation pipeline compresses that down to approximately 5:1 — not by replacing your ears, but by doing the first filter pass automatically, surfacing the ~30 best candidates from a new-release scan so you spend your limited review time on tracks that already match your taste. You still pick the final ten. The engine just does the grunt work.
+
+## The pipeline
+
+<Steps>
+  <Step title="Discovery — fetch new release candidates">
+    `discovery.py` polls Beatport genre and label pages for new tracks and normalises them into a `Track` dataclass. It fetches Beatport's embedded `__NEXT_DATA__` JSON directly from genre pages (deep-house, house, tech-house, minimal-deep-tech, afro-house, organic-house-downtempo) and from a configurable set of target label pages defined in `label_ids.json`. Traxsource currently sits behind Cloudflare bot protection that blocks both plain requests and headless browsers, so Beatport is the sole automated source today. Raw candidates are written to `raw_candidates.json`.
+
+    <Note>
+      `discovery.py` runs without an API key — it reads Beatport's public genre and label pages directly. Set `--source labels` (default) to scan your target labels only, `--source genres` for genre-wide sweeps, or `--source both` for a full pass. Traxsource remains a manual-check platform for now.
+    </Note>
+  </Step>
+
+  <Step title="Scoring — rank candidates against your taste profile">
+    `scoring.py` loads `profile.yaml` (your hand-tuned baseline) and `profile.learned.yaml` (auto-generated overrides from feedback), then scores each candidate track across eight weighted dimensions. The result is a `ScoreBreakdown` with a total out of 100 and a per-feature explanation. Tracks that trigger hard rejections — a blocked label, a BPM outside the reject band — are filtered out immediately. The top 30 scoreable tracks are saved to `ranked_top_30.json`.
+  </Step>
+
+  <Step title="Review — approve candidates in the local Flask UI">
+    `review_ui.py` starts a local Flask app at `http://localhost:5678`. Each candidate card shows the track title, artist, label, BPM, key, the scorer's total, and a collapsible per-feature breakdown. A link opens the track directly on Beatport for a 30-second preview. Tap **👍 Yes**, **🤔 Maybe**, or **👎 No** — optionally tag a reason like "too tech" or "wrong vibe". Every decision is written to `feedback.sqlite` and feeds the learning loop. Access the review UI from your phone on the same network or via Tailscale.
+  </Step>
+
+  <Step title="Publish — write the chart to your website">
+    `publish.py` reads the ten most-recent `yes` decisions from `feedback.sqlite` and assembles official Beatport iframe embeds (and Traxsource styled-link cards) into a `<!-- CHARTS:START --> … <!-- CHARTS:END -->` block inside `website/index.html`. The charts CSS is appended to `style.css` if not already present. The file is written but **not auto-pushed** — review the diff with `git diff website/`, then commit and push (or hand the push off to Claude Code). GitHub Actions deploys to `unklefunk.music` on every push to `main`.
+  </Step>
+</Steps>
+
+## Explainable scoring
+
+Every scored track produces a human-readable breakdown so you can see exactly why something ranked where it did — and tune the profile or add feedback if it's wrong. Here's a real example from the test suite in `scoring.py`:
+
+```
+=== "Late Night Mailman" by Dantiez Saunderson on Toolroom Records ===
+Total: 96.8 / 100
+         bpm: 100.0 × 20.0%  → 20.0   (122.0 in bullseye 120-123)
+         key: 100.0 ×  5.0%  → 5.0   (8A minor)
+       label: 100.0 × 25.0%  → 25.0   ('Toolroom Records' Tier 1)
+      artist: 88.0 × 20.0%  → 17.6   ('Dantiez Saunderson' → 88 from history)
+    duration: 100.0 ×  5.0%  → 5.0   (7:10 DJ tool)
+       sonic: 96.1 × 15.0%  → 14.4   (tags: warm, analog, chicago house)
+       vocal: 95.0 ×  5.0%  → 4.8   ('soulful lead' rewarded)
+     recency: 100.0 ×  5.0%  → 5.0   (32d old)
+```
+
+No black boxes. If a track scored wrong, the breakdown tells you which dimension is off — so you can either edit `profile.yaml` directly, or give feedback that will auto-adjust the weights.
+
+## Score dimensions
+
+Eight dimensions make up the 100-point total. Weights are defined in `profile.yaml` and sum to 100.
+
+<CardGroup cols={2}>
+  <Card title="BPM (20%)" icon="gauge">
+    The strongest fast filter. Full points (100) for the bullseye range of 120–123. Drops to 75 in the acceptable band (118–125), 45 in the tolerated band (116–127), and 0 outside the reject band (&lt;112 or &gt;130). A zero here short-circuits scoring and marks the track rejected.
+  </Card>
+  <Card title="Label (25%)" icon="tag">
+    The biggest coarse filter. Tier 1 labels score 100, Tier 2 labels score 65, everything else gets a fallback of 30. Tracks on the reject list (e.g. Spinnin' Records) are eliminated before any other dimension runs.
+  </Card>
+  <Card title="Artist (20%)" icon="user">
+    Seed scores from `profile.yaml` give known artists a starting position (e.g. Kerri Chandler: 95, Dantiez Saunderson: 88). Unknown artists start neutral at 50. The learning loop shifts these up or down based on your yes/no feedback.
+  </Card>
+  <Card title="Sonic (15%)" icon="waveform">
+    Positive descriptors like `warm`, `analog`, `chicago house`, `soulful`, and `paradise garage` add to the score via a sigmoid-squashed sum. Negative descriptors like `edm`, `big room`, and `festival tech` subtract. Partial tag matches count.
+  </Card>
+  <Card title="Duration (5%)" icon="clock">
+    DJ tools in the 6:40–9:00 range (400–540 seconds) score 100. Tracks under 5 minutes are likely radio edits and score 20. Over 12 minutes triggers a "check for filler" flag. The acceptable window is 5:40–11:00.
+  </Card>
+  <Card title="Vocal (5%)" icon="microphone">
+    Soulful lead, spoken word, adlibs, and sample-based vocals are rewarded (95). Vocal chops, diva runs, and guest-rapper features are penalized (25). Instrumentals score a neutral 60.
+  </Card>
+  <Card title="Key (5%)" icon="music">
+    Minor keys score higher by default. Favoured Camelot positions (4A–11A) score 100; other minor keys score 80. Major keys take a 0.7 penalty unless the soulful sonic descriptor also fires. Tracks with no key metadata score a neutral 50.
+  </Card>
+  <Card title="Recency (5%)" icon="calendar">
+    Tracks released within the last 90 days score 100, within 180 days score 70, older tracks score 30. Reissues on heritage labels (Salsoul, Nu Groove, Trax) get a partial credit bonus even if the original recording is decades old.
+  </Card>
+</CardGroup>
+
+## The learning loop
+
+Every decision you make in the review UI writes a row to `feedback.sqlite` — track metadata, your verdict (`yes` / `no` / `maybe`), and any reason tags you picked. Every 25 decisions, the engine retrains:
+
+- **Artist scores** shift up on yes, down on no — bounded at ±15% per event so no single track can wildly derail an established score.
+- **Label tier confidence** adjusts — a Tier 2 label with eight yes-votes earns promotion to Tier 1.
+- **Sonic descriptor weights** update based on which tags consistently predict yes versus no.
+
+Learned weights land in `profile.learned.yaml`. Your hand-tuned `profile.yaml` stays clean as the baseline. To reset the learning and start fresh, delete `profile.learned.yaml` — the scorer will fall back entirely to `profile.yaml` on the next run.
+
+```bash
+# Reset the learning loop
+rm music_curation/profile.learned.yaml
+
+# Inspect current feedback
+sqlite3 music_curation/feedback.sqlite \
+  "SELECT artist, title, decision, reasons FROM feedback ORDER BY ts DESC LIMIT 20;"
+```
+
+## Configuring the taste profile
+
+`music_curation/profile.yaml` is the hand-tuned source of truth. The scorer reloads it on every run — no restart required. Every block is a knob:
+
+```yaml
+# BPM — the sharpest fast filter
+bpm:
+  weight: 20
+  preferred: [120, 123]    # bullseye — full points
+  acceptable: [118, 125]
+  tolerated: [116, 127]
+  reject_below: 112        # hard reject — track eliminated before other dims
+  reject_above: 130
+
+# Label tiers — biggest coarse filter
+labels:
+  weight: 25
+  tiers:
+    tier_1:
+      score: 100
+      names:
+        - Toolroom Records
+        - Defected Records
+        - Glasgow Underground
+        - Simma Black
+        - Cuttn' Headz
+    tier_2:
+      score: 65
+      names:
+        - Nervous Records
+        - Strictly Rhythm
+        - Local Talk
+        - Hot Creations
+  reject_labels:
+    - Spinnin' Records
+    - Musical Freedom
+
+# Artist seeds — 0-100; 50 = neutral (never heard)
+artists:
+  weight: 20
+  seed_scores:
+    Kerri Chandler: 95
+    Dantiez Saunderson: 88
+    Paul Johnson: 100       # auto-consider posthumous releases
+```
+
+To teach the engine a new label, add its name to the appropriate tier. To boost or penalise an artist before the feedback loop has enough data, edit their seed score directly. Changes take effect on the next `discovery.py` run.
+
+## Discovery access
+
+`discovery.py` reads Beatport's public pages directly — no API key, no per-request cost. For a more targeted pass, populate `label_ids.json` with the Beatport IDs of your priority labels, then run with `--source labels`. For a genre-wide sweep, use `--source genres`. To do both in one pass: `--source both`.
+
+```bash
+# Scan your target labels for releases in the last 14 days
+python3 music_curation/discovery.py --source labels --days 14
+
+# Deeper genre sweep — 3 pages per genre
+python3 music_curation/discovery.py --source genres --pages 3
+
+# Combined — labels first, then genres
+python3 music_curation/discovery.py --source both --pages 2 --days 30
+```
+
+If you previously used a SearchAPI.io key for discovery, that approach has been superseded. The direct Beatport page approach gives better data — exact BPM, Camelot key, label, and real release dates — without per-request costs. The three historical access options are summarised below for reference:
+
+<Accordion title="Historical discovery options (reference only)">
+  - **Option A — SearchAPI.io key:** Uses `SEARCH_API_KEY` to find Beatport URLs via search, then fetches each page for metadata. Works today but costs ~40 paid requests per pass and search snippets don't carry release dates reliably.
+  - **Option B — Beatport partner API:** Cleaner structured data, but access is gated and typically restricted to Beatport retail partners. Not a practical path for independent producers.
+  - **Option C — Traxsource + Beatport RSS/label pages:** Free, but Traxsource now sits behind Cloudflare bot protection. Beatport label pages are the reliable free path — now the default in `discovery.py`.
+</Accordion>
+
+<Note>
+  Traxsource is not currently automatable. Its site serves a JS challenge page to both plain HTTP requests and headless Playwright browsers (verified). Traxsource remains a manual-check platform — `discovery.py` is Beatport-only until a reliable path to Traxsource data emerges.
+</Note>

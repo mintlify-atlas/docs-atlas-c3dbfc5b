@@ -1,0 +1,265 @@
+---
+title: "Build a Custom Agent for Your OpenSwarm Fork"
+sidebarTitle: "Custom Agents"
+description: "Fork OpenSwarm and build specialized agents for any domain in minutes. Each agent needs a Python definition file, an instructions.md prompt, and a tools/ directory."
+---
+
+OpenSwarm is designed to be forked and reshaped into any kind of specialist swarm you need. Every agent is a self-contained folder of plain files — a Python definition, a Markdown system prompt, and a `tools/` directory. There is no framework magic to fight: renaming an agent means renaming a folder and updating two imports. This page walks through the full process of adding a new agent from scratch.
+
+## Agent folder structure
+
+Every agent in the swarm follows the same layout:
+
+```
+my_agent/
+  __init__.py           ← exports create_my_agent()
+  my_agent.py           ← agent definition (model, instructions, tools)
+  instructions.md       ← system prompt — edit this to change behavior
+  tools/
+    MyTool.py           ← custom tools for this agent
+    __init__.py
+```
+
+- `__init__.py` is a one-liner that re-exports the factory function so `swarm.py` can do `from my_agent import create_my_agent`.
+- `my_agent.py` instantiates the `Agent` class with its name, description, model, and tool list.
+- `instructions.md` is the agent's full system prompt. Editing this file is the primary lever for changing an agent's behavior — no code changes required.
+- `tools/` holds Python classes that extend `BaseTool`. The agent loads them at startup.
+
+## Step-by-step: creating a new agent
+
+<Steps>
+  <Step title="Create the agent folder and files">
+    ```bash
+    mkdir -p my_agent/tools
+    touch my_agent/__init__.py
+    touch my_agent/my_agent.py
+    touch my_agent/instructions.md
+    touch my_agent/tools/__init__.py
+    ```
+
+    You can also use the Agency Swarm CLI to scaffold this automatically:
+
+    ```bash
+    agency-swarm create-agent-template \
+      --description "Description of the agent" \
+      --model "gpt-5.2" \
+      --reasoning "medium" \
+      "my_agent"
+    ```
+  </Step>
+
+  <Step title="Write my_agent.py">
+    Model your file on the pattern used throughout the codebase. Here is the actual pattern from `deep_research/deep_research.py`:
+
+    ```python
+    from agency_swarm import Agent, ModelSettings
+    from agency_swarm.tools import WebSearchTool, IPythonInterpreter
+    from openai.types.shared import Reasoning
+
+    from config import get_default_model, is_openai_provider
+
+
+    def create_deep_research() -> Agent:
+        return Agent(
+            name="Deep Research Agent",
+            description="Comprehensive deep research agent that conducts thorough research on any topic.",
+            instructions="./instructions.md",
+            files_folder="./files",
+            tools=[WebSearchTool(), ScholarSearch, IPythonInterpreter],
+            model=get_default_model(),
+            model_settings=ModelSettings(
+                reasoning=Reasoning(effort="high", summary="auto") if is_openai_provider() else None,
+            ),
+            conversation_starters=[
+                "Research the latest trends in renewable energy for 2026.",
+                "Give me a comprehensive analysis of the AI agent market landscape.",
+            ],
+        )
+    ```
+
+    Key field notes:
+    - `instructions="./instructions.md"` — always a relative path; Agency Swarm resolves it relative to the agent file
+    - `model=get_default_model()` — reads `DEFAULT_MODEL` from `.env`, never hardcoded
+    - `model_settings` — sets reasoning effort for OpenAI models; `is_openai_provider()` returns `False` for LiteLLM-routed models (Anthropic, Gemini), so `reasoning` is set to `None` for those
+    - `tools` — list of tool classes (not instances, except for built-ins like `WebSearchTool()`)
+    - `files_folder` — optional directory of files the agent can reference at runtime
+
+    Export the factory from `__init__.py`:
+
+    ```python
+    # my_agent/__init__.py
+    from .my_agent import create_my_agent
+    ```
+  </Step>
+
+  <Step title="Write instructions.md">
+    The `instructions.md` file is the agent's complete system prompt. Define:
+
+    - **Role** — what the agent is and what it owns
+    - **Goals** — what outcomes it is optimizing for
+    - **Process** — step-by-step workflow it follows for each task type
+    - **Output format** — expected response structure
+    - **Handoff rules** — when to transfer to another specialist
+
+    ```markdown
+    # Role
+
+    You are a **[specialist role]** responsible for [what this agent owns].
+
+    # Goals
+
+    - [High-level outcome this agent drives]
+    - [Another goal]
+
+    # Process
+
+    ## [Task type]
+
+    1. [Step one]
+    2. [Step two]
+    3. [Step three]
+
+    # Output Format
+
+    - [How responses should be structured]
+
+    # Additional Notes
+
+    - Handoff to [other agent] for tasks outside your scope.
+    ```
+  </Step>
+
+  <Step title="Register in swarm.py">
+    Open `swarm.py` and add your agent to the `create_agency` factory:
+
+    ```python
+    # 1. Import the factory at the top
+    from my_agent import create_my_agent
+
+    def create_agency(load_threads_callback=None):
+        from agency_swarm import Agency
+        from agency_swarm.tools import Handoff, SendMessage
+
+        # ... existing imports ...
+        from my_agent import create_my_agent
+
+        # 2. Instantiate
+        my_agent = create_my_agent()
+
+        # 3. Add to the all_agents list
+        all_agents = [
+            orchestrator,
+            virtual_assistant,
+            deep_research,
+            # ... other agents ...
+            my_agent,          # ← add here
+        ]
+
+        # Communication flows are defined automatically:
+        # send_message_flows lets the orchestrator message every specialist
+        # handoff_flows let every agent hand off to every other agent
+        send_message_flows = [
+            (orchestrator, specialist, SendMessage)
+            for specialist in all_agents
+            if specialist is not orchestrator
+        ]
+
+        handoff_flows = [
+            (a > b, Handoff)
+            for a in all_agents
+            for b in all_agents
+            if a is not b
+        ]
+
+        agency = Agency(
+            *all_agents,
+            communication_flows=send_message_flows + handoff_flows,
+            name="OpenSwarm",
+            shared_instructions="shared_instructions.md",
+            load_threads_callback=load_threads_callback,
+        )
+
+        return agency
+    ```
+  </Step>
+
+  <Step title="Update the orchestrator routing guide">
+    Open `orchestrator/instructions.md` and add a line to the **Routing Guide** section so the orchestrator knows when to delegate to your new agent:
+
+    ```markdown
+    # Routing Guide
+
+    - **General Agent**: administrative workflows, external systems, messaging, scheduling.
+    - **Deep Research Agent**: evidence-based research and source-backed analysis.
+    # ... existing entries ...
+    - **My Agent**: [one-line description of what it handles and when to route to it].
+    ```
+
+    The orchestrator reads its `instructions.md` at every startup; no code change is needed.
+  </Step>
+</Steps>
+
+## Example: simple SEO agent
+
+Here is a complete, minimal agent definition following the real Agency Swarm pattern:
+
+```python
+# seo_agent/seo_agent.py
+from agency_swarm import Agent, ModelSettings
+from agency_swarm.tools import WebSearchTool
+from openai.types.shared import Reasoning
+
+from config import get_default_model, is_openai_provider
+
+
+def create_seo_agent() -> Agent:
+    return Agent(
+        name="SEO Agent",
+        description=(
+            "Keyword research, on-page SEO audits, and search visibility analysis. "
+            "Hands off content writing to the Docs Agent."
+        ),
+        instructions="./instructions.md",
+        files_folder="./files",
+        tools=[WebSearchTool()],
+        model=get_default_model(),
+        model_settings=ModelSettings(
+            reasoning=Reasoning(effort="medium", summary="auto") if is_openai_provider() else None,
+        ),
+        conversation_starters=[
+            "Analyze the SEO of my website.",
+            "Research high-volume keywords for [topic].",
+            "Audit this page for on-page SEO issues.",
+        ],
+    )
+```
+
+```python
+# seo_agent/__init__.py
+from .seo_agent import create_seo_agent
+```
+
+Add `WebSearchTool()` for live SERP lookups, or replace it with a custom `AuditPage` tool that wraps a crawl API. The agent's behavior is entirely determined by `instructions.md`.
+
+## Popular swarm configurations
+
+Because every agent is a folder of plain files, OpenSwarm can be reshaped into a focused specialist swarm by renaming folders, rewriting `instructions.md` files, and updating `swarm.py`. Common patterns from AGENTS.md:
+
+<CardGroup cols={2}>
+  <Card title="SEO Swarm" icon="magnifying-glass">
+    Keyword Planner + Blog Post Writer + SEO Analytics Agent + Technical SEO Agent. The Orchestrator routes by task type: research → writing → analysis → technical audit.
+  </Card>
+  <Card title="Sales Swarm" icon="handshake">
+    Lead Researcher + Outreach Writer + CRM Agent (HubSpot via Composio) + Follow-up Scheduler. Composio handles Gmail and calendar automatically.
+  </Card>
+  <Card title="Marketing Swarm" icon="bullhorn">
+    Campaign Strategist + Content Creator + Social Media Publisher + Analytics Reporter. Each agent owns one phase of the campaign lifecycle.
+  </Card>
+  <Card title="Product Swarm" icon="cube">
+    PRD Writer + User Researcher + Data Analyst + Roadmap Prioritizer. Deep Research feeds evidence into the PRD; the Data Analyst validates assumptions against usage data.
+  </Card>
+</CardGroup>
+
+<Tip>
+  Give Claude Code, Cursor, or Codex the `AGENTS.md` file and describe the swarm you want to build. Because `AGENTS.md` explains the folder structure, the `swarm.py` wiring pattern, and the role of each file, the AI understands the codebase immediately and can scaffold the correct files, update `swarm.py`, and patch the orchestrator routing guide in a single pass — without needing further explanation of the framework.
+</Tip>
