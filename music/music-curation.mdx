@@ -1,7 +1,7 @@
 ---
 title: "Music Curation Engine: Taste-Scored Track Discovery"
 sidebarTitle: "Music Curation"
-description: "OpenSwarm's music curation pipeline discovers new tracks from Beatport and Traxsource, scores them against a taste profile, and publishes the results to your website automatically."
+description: "Score new Beatport releases against your house music taste profile across eight explainable dimensions and publish a ranked chart automatically."
 ---
 
 The music curation engine exists to solve a real problem for working DJs: the raw track-to-listen ratio on Beatport or Traxsource is roughly 50:1. For every track worth playing, you audition dozens that aren't even close. OpenSwarm's curation pipeline compresses that down to approximately 5:1 — not by replacing your ears, but by doing the first filter pass automatically, surfacing the ~30 best candidates from a new-release scan so you spend your limited review time on tracks that already match your taste. You still pick the final ten. The engine just does the grunt work.
@@ -120,21 +120,34 @@ labels:
     tier_1:
       score: 100
       names:
+        - HOUSEu
         - Toolroom Records
-        - Defected Records
+        - Fool's Paradise
         - Glasgow Underground
+        - Jackie's
+        - Defected Records
+        - Jack (Defected sub-label)
+        - Defined Records
         - Simma Black
-        - Cuttn' Headz
+        - Cuttin' Headz
     tier_2:
       score: 65
       names:
         - Nervous Records
         - Strictly Rhythm
         - Local Talk
+        - Snatch! Records
+        - Nurvous Records
         - Hot Creations
+        - Solid Grooves
+        - Repopulate Mars
+        - Sola
+    tier_3_fallback:
+      score: 30
   reject_labels:
     - Spinnin' Records
     - Musical Freedom
+    - Revealed Recordings
 
 # Artist seeds — 0-100; 50 = neutral (never heard)
 artists:

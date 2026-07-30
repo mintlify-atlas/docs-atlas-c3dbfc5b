@@ -46,8 +46,8 @@ The Orchestrator maps request types to specialists using this guide:
 
 | Request type | Routed to |
 |---|---|
-| Administrative workflows, external systems, messaging, scheduling | **Virtual Assistant** |
-| Evidence-based research and source-backed analysis | **Deep Research** |
+| Administrative workflows, external systems, messaging, scheduling | **General Agent** |
+| Evidence-based research and source-backed analysis | **Deep Research Agent** |
 | Data analysis, KPIs, charts, and analytical insights | **Data Analyst** |
 | Presentation creation, editing, and exports | **Slides Agent** |
 | Document creation, editing, and conversion | **Docs Agent** |
@@ -97,7 +97,7 @@ If a request is unclear, ambiguous, or no suitable specialist exists for it, the
   <Tab title="Parallel multi-specialist task">
     **User:** "Build a full launch package: research the competitive landscape, create a slide deck, and draft an executive memo."
 
-    **Decision:** Three independent subtasks → `SendMessage` to **Deep Research**, **Slides Agent**, and **Docs Agent** in parallel.
+    **Decision:** Three independent subtasks → `SendMessage` to **Deep Research Agent**, **Slides Agent**, and **Docs Agent** in parallel.
 
     The Orchestrator waits for all three outputs, then delivers a unified summary with the file paths from each specialist.
   </Tab>

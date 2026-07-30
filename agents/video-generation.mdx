@@ -38,6 +38,12 @@ The Video Generation Agent is a full-stack video production specialist that crea
   <Card title="EditImage" icon="image">
     Edits a single video frame or reference image using Gemini 2.5 Flash Image. Accepts a natural language edit prompt and produces up to 4 variants. Used for compositing reference frames before image-to-video generation.
   </Card>
+  <Card title="GenerateImage" icon="wand-magic-sparkles">
+    Creates a reference image using Google's Gemini 2.5 Flash Image model. Use this to generate studio product shots, character concepts, stylized art, or any visual asset that will serve as a `first_frame_ref` or `asset_image_ref` for subsequent video generation. Outputs are saved to `mnt/{product_name}/generated_images/`.
+  </Card>
+  <Card title="CombineImages" icon="object-group">
+    Merges multiple images into a single composition according to a text instruction using Gemini 2.5 Flash Image. Use this to overlay a logo onto a product shot, composite a subject onto a background, or build any exact scene before animating it with `GenerateVideo`. Requires at least two image references.
+  </Card>
 </CardGroup>
 
 ## Supported providers

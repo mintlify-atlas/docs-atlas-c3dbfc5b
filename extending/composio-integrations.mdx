@@ -20,7 +20,7 @@ Get both values at [https://composio.dev](https://composio.dev). The `COMPOSIO_A
 
 ## The tool discovery sequence
 
-Agents follow a four-step sequence whenever they need to use an external integration. This sequence is defined in `shared_instructions.md` Section 5 and applies to every agent in the swarm:
+Agents follow a four-step sequence whenever they need to use an external integration. This sequence is defined in `shared_instructions.md` Section 4 and applies to every agent in the swarm:
 
 <Steps>
   <Step title="ManageConnections — check authentication">
@@ -73,7 +73,7 @@ Agents follow a four-step sequence whenever they need to use an external integra
 
 ## Programmatic tool calling
 
-For complex multi-step workflows — where you need to call multiple tools in sequence, transform data between steps, or build conditional logic — agents can use `IPythonInterpreter` with direct `composio` client calls. The `composio` client object and `user_id` are automatically injected at runtime; do not import them manually.
+For complex multi-step workflows — where you need to call multiple tools in sequence, transform data between steps, or build conditional logic — agents can use `ProgrammaticToolCalling` with direct `composio` client calls. The `composio` client object and `user_id` are automatically injected at runtime; do not import them manually.
 
 ```python
 # Fetch available Gmail tools
@@ -97,7 +97,7 @@ result = composio.tools.execute(
 print(result)
 ```
 
-Use programmatic calling only when `ExecuteTool` is not sufficient. For the majority of tasks — sending a message, creating a calendar event, submitting a ticket — the four-step sequence with `ExecuteTool` is cleaner and more token-efficient.
+Use `ProgrammaticToolCalling` only when `ExecuteTool` is not sufficient. For the majority of tasks — sending a message, creating a calendar event, submitting a ticket — the four-step sequence with `ExecuteTool` is cleaner and more token-efficient.
 
 ## Supported toolkit families
 
@@ -167,7 +167,7 @@ These guidelines come directly from `shared_instructions.md` Section 5.5 and app
 
 - **Use `SearchTools` before `FindTools` when the exact tool name is unknown** — attempting `FindTools` with a guess at a tool name wastes a round-trip if the name is wrong. The search step is fast and returns exact names you can pass directly to `FindTools`.
 
-- **Prefer `ExecuteTool` over programmatic calling** — `ExecuteTool` handles auth context, error formatting, and field extraction automatically. Only drop down to `composio.tools.execute(...)` directly when you need conditional logic or data transformation between multiple tool calls.
+- **Prefer `ExecuteTool` over `ProgrammaticToolCalling`** — `ExecuteTool` handles auth context, error formatting, and field extraction automatically. Only drop down to `ProgrammaticToolCalling` (i.e., direct `composio.tools.execute(...)` calls) when you need conditional logic or data transformation between multiple tool calls.
 
 <Note>
   Composio authentication is **per-user**. The `COMPOSIO_USER_ID` in your `.env` determines which OAuth connections are available. If you connect Gmail in the Composio dashboard under user ID `user_abc`, then set `COMPOSIO_USER_ID=user_abc` in `.env` — the agents will have access to that Gmail account. If you change the user ID, the previously authorized connections will not be available and `ManageConnections` will prompt for re-authentication.

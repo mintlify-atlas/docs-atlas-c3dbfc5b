@@ -99,8 +99,11 @@ jobs:
           password: ${{ secrets.HOSTINGER_SSH_PASS }}
           script: |
             mkdir -p ~/domains/unklefunk.music/public_html
-            rm -f ~/domains/unklefunk.music/public_html/default.php \
-                  ~/domains/unklefunk.music/public_html/index.php
+            echo "=== web root before deploy ==="
+            ls -la ~/domains/unklefunk.music/public_html/
+            echo "=== Removing any conflicting index files ==="
+            rm -f ~/domains/unklefunk.music/public_html/default.php ~/domains/unklefunk.music/public_html/index.php
+            echo "Done."
 
       - name: Upload files
         uses: appleboy/scp-action@v1.0.0
@@ -126,13 +129,34 @@ jobs:
           script: |
             find ~/domains/unklefunk.music/public_html -type f -exec chmod 644 {} \;
             find ~/domains/unklefunk.music/public_html -type d -exec chmod 755 {} \;
+            echo "=== Full web root ==="
             find ~/domains/unklefunk.music/public_html -maxdepth 2
+            echo ""
+            echo "=== First 3 lines of index.html ==="
+            head -3 ~/domains/unklefunk.music/public_html/index.html
+            echo ""
+            echo "=== .htaccess content ==="
+            cat ~/domains/unklefunk.music/public_html/.htaccess
 
       - name: Check live site
         run: |
+          echo "Waiting 5s for server to settle..."
           sleep 5
-          HTTP=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 15 https://unklefunk.music/)
+          HTTP=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 15 https://unklefunk.music/ || echo "CURL_FAILED")
           echo "HTTP status: $HTTP"
+          BODY=$(curl -s -L --max-time 15 https://unklefunk.music/ | head -c 200 || echo "FETCH_FAILED")
+          echo "Site preview: $BODY"
+          echo ""
+          echo "=== style.css: live vs repo ==="
+          curl -s -D - -o /tmp/live-style.css -L --max-time 15 "https://unklefunk.music/style.css?cachebust=$(date +%s)"
+          echo "Local repo size:"
+          wc -c website/style.css
+          echo "Live fetched size:"
+          wc -c /tmp/live-style.css
+          echo "MD5 local vs live:"
+          md5sum website/style.css /tmp/live-style.css
+          echo "First 5 lines of live style.css:"
+          head -5 /tmp/live-style.css
 ```
 
 ## Adapting for other hosts

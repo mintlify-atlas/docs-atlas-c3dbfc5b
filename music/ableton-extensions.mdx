@@ -1,7 +1,7 @@
 ---
-title: "Ableton Extensions SDK: Build Live Integrations with TypeScript"
+title: "Ableton Live Extensions: TypeScript SDK for OpenSwarm"
 sidebarTitle: "Ableton Extensions"
-description: "OpenSwarm includes two ready-to-use Ableton Live Extensions and the Dream Agent that generates new ones nightly — built on Ableton's TypeScript Extensions SDK."
+description: "Two Ableton Live Extensions ship with OpenSwarm, plus a Dream Agent that generates nightly TypeScript groove sketches personalized to your taste profile."
 ---
 
 Ableton Live 12.4.5 introduced an Extensions SDK that lets you write TypeScript programs that create tracks, write MIDI notes, set tempo, register context-menu commands, and open custom HTML dialogs — all directly inside a running Live session. OpenSwarm ships two production-ready extensions (`unkle-funk-song-sketch` and `chicago-grid-setup`) and a Dream Agent that generates a new song sketch extension every night, compiling fresh TypeScript groove templates tailored to Unkle Funk's sound. Extensions are right-click–first: you invoke them from Live's context menu on a track header or arrangement selection. No Max for Live, no Python Remote Scripts — pure TypeScript running in Node.js.
@@ -11,14 +11,14 @@ Ableton Live 12.4.5 introduced an Extensions SDK that lets you write TypeScript 
 Two extensions live under `ableton_extensions/built/`:
 
 <CardGroup cols={2}>
-  <Card title="unkle-funk-song-sketch" icon="wand-magic-sparkles">
+  <Card title="Unkle Funk Song Sketch" icon="wand-magic-sparkles">
     The nightly song sketch system. Right-click any MIDI or Audio track → **"Load Sketch: [Name] (BPM, Key)"** → six MIDI tracks appear in your arrangement with a fully-written, humanized groove ready to build from.
 
     Each sketch contains a **KICK** (Chicago syncopation), **SNARE** (2-and-4 with ghost notes), **HATS** (off-beat 8th/16th with open-hat breathe), **PERCS** (rolling conga/rimshot texture), **BASS** (C minor root-walking line), and **CHORDS** (sparse Cm stabs on beat 2). All notes are humanized — subtle timing drift (±8ms) and velocity variation (±6) give the grid an organic, analog feel.
 
     New sketches are added nightly by the Dream Agent via `scripts/nightly_dream.py`. Each sketch is a named TypeScript module (e.g. "Slow Burn on State Street", 123 BPM, C Minor) imported into the extension's context menu.
   </Card>
-  <Card title="chicago-grid-setup" icon="grid">
+  <Card title="Chicago Grid Setup" icon="grid">
     Glenn's default production scaffold in one right-click. Right-click any track → **"Chicago Grid Setup (123 BPM)"** → six MIDI tracks appear, tempo is set to 123 BPM, each track is named, color-coded, and populated with empty 8-bar clips ready to program.
 
     | Track | Color | Purpose |
